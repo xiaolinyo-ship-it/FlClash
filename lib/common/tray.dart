@@ -1,4 +1,5 @@
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -71,6 +72,7 @@ class AppTray implements TrayPort {
     if (_isShutDown) {
       return;
     }
+    final codex = await CodexAccountSnapshotReader().read();
     await Tray.instance.show(
       TraySpec(
         icon: TrayIcon.asset(
@@ -80,8 +82,8 @@ class AppTray implements TrayPort {
           ),
           isTemplate: isMacOS,
         ),
-        toolTip: appName,
-        menu: _buildMenu(trayState: trayState, read: read),
+        toolTip: _trayToolTip(codex),
+        menu: _buildMenu(trayState: trayState, read: read, codex: codex),
       ),
     );
     await updateTitle(showTrayTitle: trayState.showTrayTitle, traffic: traffic);
@@ -100,6 +102,7 @@ class AppTray implements TrayPort {
   List<TrayMenuItem> _buildMenu({
     required TrayState trayState,
     required ProviderReader read,
+    required CodexSnapshotReadResult codex,
   }) {
     final commonAction = read(commonActionProvider.notifier);
     final systemAction = read(systemActionProvider.notifier);
@@ -126,6 +129,7 @@ class AppTray implements TrayPort {
           checked: trayState.showTrayTitle,
           onSelected: commonAction.updateSpeedStatistics,
         ),
+      ..._buildCodexMenu(codex),
       const TrayMenuSeparator(),
       for (final mode in Mode.values)
         TrayMenuCheckbox(
@@ -171,6 +175,39 @@ class AppTray implements TrayPort {
     ];
   }
 
+  List<TrayMenuItem> _buildCodexMenu(CodexSnapshotReadResult result) {
+    final snapshot = result.snapshot;
+    if (snapshot == null || snapshot.accounts.isEmpty) {
+      return [
+        const TrayMenuSubmenu(
+          label: 'Codex：额度不可用',
+          items: <TrayMenuItem>[],
+        ),
+      ];
+    }
+    return [
+      TrayMenuSubmenu(
+        label: 'Codex：${snapshot.accounts.length} 个账户',
+        items: [
+          for (final account in snapshot.accounts)
+            TrayMenuAction(
+              label: _trayAccountLabel(account),
+              enabled: false,
+            ),
+        ],
+      ),
+    ];
+  }
+
+  String _trayToolTip(CodexSnapshotReadResult result) {
+    final snapshot = result.snapshot;
+    if (snapshot == null || snapshot.accounts.isEmpty) {
+      return '$appName\nCodex：额度不可用';
+    }
+    final first = snapshot.accounts.take(3).map(_trayAccountLabel).join('\n');
+    return '$appName\n$first';
+  }
+
   List<TrayMenuItem> _buildGroupMenu({
     required TrayState trayState,
     required ProviderReader read,
@@ -210,5 +247,15 @@ class AppTray implements TrayPort {
     await Clipboard.setData(ClipboardData(text: cmdline));
   }
 }
+
+String _trayAccountLabel(CodexAccountCardData account) {
+  final weekly = _trayPercent(account.weekly?.remainingPercent);
+  final monthly = _trayPercent(account.monthly?.remainingPercent);
+  final current = account.isCurrent ? '（当前）' : '';
+  return '${account.displayName}$current  周余$weekly  月余$monthly';
+}
+
+String _trayPercent(double? value) =>
+    value == null ? '未提供' : '${value.round()}%';
 
 final appTray = system.isDesktop ? AppTray() : null;

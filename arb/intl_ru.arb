@@ -17,7 +17,7 @@
   "outboundMode": "Режим исходящего трафика",
   "networkDetection": "Проверка сети",
   "codexAccounts": "Аккаунты Codex",
-  "codexAccountsHint": "Только чтение снимка CodexBar; обновление перечитывает только файл",
+  "codexAccountsHint": "FlClash читает лимиты Codex напрямую и при ошибке использует снимок или локальный кэш",
   "codexFiveHour": "Лимит на 5 часов",
   "codexWeekly": "Недельный лимит",
   "codexUsedRemaining": "Использовано {used} · Осталось {remaining}",

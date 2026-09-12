@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
+import 'codex_account_live.dart';
+
 const codexSnapshotStaleAfter = Duration(hours: 1);
 
 enum CodexAccountStatus { normal, exhausted, expired, dataAnomaly, readFailed }
@@ -14,6 +16,8 @@ enum CodexSnapshotReadFailure {
   unsupportedPlatform,
   unknown,
 }
+
+enum CodexSnapshotSource { live, codexBarSnapshot, cache }
 
 class CodexQuotaWindow {
   final int? limitWindowSeconds;
@@ -58,7 +62,9 @@ class CodexAccountCardData {
   final String displayName;
   final CodexQuotaWindow? fiveHour;
   final CodexQuotaWindow? weekly;
+  final CodexQuotaWindow? monthly;
   final DateTime? updatedAt;
+  final bool isCurrent;
 
   const CodexAccountCardData({
     required this.id,
@@ -67,7 +73,9 @@ class CodexAccountCardData {
     required this.displayName,
     required this.fiveHour,
     required this.weekly,
+    this.monthly,
     required this.updatedAt,
+    this.isCurrent = false,
   });
 
   bool get hasDataAnomaly =>
@@ -81,7 +89,9 @@ class CodexAccountCardData {
     'displayName': displayName,
     'fiveHour': fiveHour?.toCacheJson(),
     'weekly': weekly?.toCacheJson(),
+    'monthly': monthly?.toCacheJson(),
     'updatedAt': updatedAt?.toUtc().toIso8601String(),
+    'isCurrent': isCurrent,
   };
 
   factory CodexAccountCardData.fromCacheJson(Map<String, dynamic> json) {
@@ -89,7 +99,8 @@ class CodexAccountCardData {
     final displayName = _readString(json['displayName']);
     final fiveHour = _parseWindow(json['fiveHour']);
     final weekly = _parseWindow(json['weekly']);
-    if (id == null || displayName == null || fiveHour == null || weekly == null) {
+    final monthly = _parseWindow(json['monthly']);
+    if (id == null || displayName == null) {
       throw const FormatException('cached account entry is invalid');
     }
     return CodexAccountCardData(
@@ -99,7 +110,9 @@ class CodexAccountCardData {
       displayName: displayName,
       fiveHour: fiveHour,
       weekly: weekly,
+      monthly: monthly,
       updatedAt: _readDateTime(json['updatedAt']),
+      isCurrent: json['isCurrent'] == true,
     );
   }
 
@@ -121,13 +134,21 @@ class CodexAccountCardData {
 class CodexAccountSnapshot {
   final List<CodexAccountCardData> accounts;
   final DateTime readAt;
+  final CodexSnapshotSource source;
+  final bool currentConfirmed;
 
-  const CodexAccountSnapshot({required this.accounts, required this.readAt});
+  const CodexAccountSnapshot({
+    required this.accounts,
+    required this.readAt,
+    this.source = CodexSnapshotSource.codexBarSnapshot,
+    this.currentConfirmed = false,
+  });
 
   Map<String, dynamic> toCacheJson() => {
     'version': 1,
     'readAt': readAt.toUtc().toIso8601String(),
     'accounts': accounts.map((account) => account.toCacheJson()).toList(),
+    'currentConfirmed': currentConfirmed,
   };
 
   factory CodexAccountSnapshot.fromCacheJson(Map<String, dynamic> json) {
@@ -145,7 +166,12 @@ class CodexAccountSnapshot {
       );
     }).toList();
     accounts.sort((left, right) => left.id.compareTo(right.id));
-    return CodexAccountSnapshot(accounts: accounts, readAt: readAt);
+    return CodexAccountSnapshot(
+      accounts: accounts,
+      readAt: readAt,
+      source: CodexSnapshotSource.cache,
+      currentConfirmed: json['currentConfirmed'] == true,
+    );
   }
 
   factory CodexAccountSnapshot.fromJson(
@@ -167,6 +193,7 @@ class CodexAccountSnapshot {
       final windows = [
         _parseWindow(value['primaryWindow']),
         _parseWindow(value['secondaryWindow']),
+        _parseWindow(value['monthlyWindow']),
       ].whereType<CodexQuotaWindow>().toList();
       final email = _readString(value['email']);
       accounts.add(
@@ -177,6 +204,7 @@ class CodexAccountSnapshot {
           displayName: _displayName(id, email),
           fiveHour: _findWindow(windows, 18000),
           weekly: _findWindow(windows, 604800),
+          monthly: _findWindow(windows, 2592000),
           updatedAt: _readDateTime(value['updatedAt']),
         ),
       );
@@ -202,11 +230,13 @@ class CodexSnapshotReadResult {
   final CodexAccountSnapshot? snapshot;
   final CodexSnapshotReadFailure? failure;
   final bool fromCache;
+  final CodexSnapshotSource source;
 
   const CodexSnapshotReadResult({
     required this.snapshot,
     required this.failure,
     this.fromCache = false,
+    this.source = CodexSnapshotSource.codexBarSnapshot,
   });
 }
 
@@ -215,16 +245,32 @@ class CodexAccountSnapshotReader {
   final String? snapshotPath;
   final String? cachePath;
   final DateTime Function() _clock;
+  final Future<CodexSnapshotReadResult> Function()? liveReader;
 
   CodexAccountSnapshotReader({
     this.readText,
     this.snapshotPath,
     this.cachePath,
+    this.liveReader,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
   Future<CodexSnapshotReadResult> read() async {
     final readAt = _clock();
+    if (liveReader != null ||
+        (readText == null && snapshotPath == null && Platform.isWindows)) {
+      try {
+        final liveProbe = liveReader != null
+            ? await liveReader!()
+            : await CodexAccountLiveReader(clock: _clock).read();
+        if (liveProbe.snapshot != null) {
+          await _writeCache(liveProbe.snapshot!);
+          return liveProbe;
+        }
+      } catch (_) {
+        // The snapshot and cache paths below keep the dashboard available.
+      }
+    }
     CodexSnapshotReadResult liveResult;
     try {
       final raw = await _readRaw();
@@ -251,7 +297,15 @@ class CodexAccountSnapshotReader {
           readAt: readAt,
         );
         await _writeCache(snapshot);
-        return CodexSnapshotReadResult(snapshot: snapshot, failure: null);
+        return CodexSnapshotReadResult(
+          snapshot: CodexAccountSnapshot(
+            accounts: snapshot.accounts,
+            readAt: snapshot.readAt,
+            source: CodexSnapshotSource.codexBarSnapshot,
+            currentConfirmed: snapshot.currentConfirmed,
+          ),
+          failure: null,
+        );
       } on FormatException {
         liveResult = const CodexSnapshotReadResult(
           snapshot: null,

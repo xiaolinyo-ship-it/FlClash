@@ -126,6 +126,13 @@ class _CodexAccountsState extends State<CodexAccounts> {
                     isError: true,
                   ),
                 if (snapshot != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _sourceText(snapshot.source),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   if (_missingAccountIds.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _CodexMessage(
@@ -220,6 +227,15 @@ class _CodexAccountCard extends StatelessWidget {
                       semanticLabel: 'Codex',
                     ),
                     const SizedBox(width: 6),
+                    if (account.isCurrent) ...[
+                      Text(
+                        '当前',
+                        style: context.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                     Expanded(
                       child: Text(
                         account.displayName,
@@ -248,6 +264,12 @@ class _CodexAccountCard extends StatelessWidget {
           _CodexQuotaRow(
             label: localizations.codexWeekly,
             window: account.weekly,
+            localizations: localizations,
+          ),
+          const SizedBox(height: 10),
+          _CodexQuotaRow(
+            label: '月额度',
+            window: account.monthly,
             localizations: localizations,
           ),
           const SizedBox(height: 12),
@@ -391,6 +413,14 @@ String _failureText(
     CodexSnapshotReadFailure.unsupportedPlatform =>
       localizations.codexUnsupportedPlatform,
     CodexSnapshotReadFailure.unknown => localizations.codexReadFailed,
+  };
+}
+
+String _sourceText(CodexSnapshotSource source) {
+  return switch (source) {
+    CodexSnapshotSource.live => 'FlClash 实时读取（独立于 CodexBar）',
+    CodexSnapshotSource.codexBarSnapshot => 'CodexBar 快照回退',
+    CodexSnapshotSource.cache => 'FlClash 本地缓存回退',
   };
 }
 

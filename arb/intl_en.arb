@@ -17,7 +17,7 @@
   "outboundMode": "Outbound mode",
   "networkDetection": "Network detection",
   "codexAccounts": "Codex accounts",
-  "codexAccountsHint": "Read-only CodexBar snapshot; refresh rereads the file only",
+  "codexAccountsHint": "FlClash reads Codex quota directly; falls back to snapshot or local cache on failure",
   "codexFiveHour": "5-hour quota",
   "codexWeekly": "Weekly quota",
   "codexUsedRemaining": "Used {used} · Remaining {remaining}",

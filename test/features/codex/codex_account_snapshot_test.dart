@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
+import 'package:fl_clash/features/codex/codex_account_live.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> _window(int seconds, double used, double remaining) {
@@ -115,6 +116,32 @@ void main() {
       account.statusAt(DateTime(2026, 9, 12, 12)),
       CodexAccountStatus.exhausted,
     );
+  });
+
+  test('maps live five-hour, weekly, and monthly windows by duration', () {
+    final windows = CodexAccountLiveReader.parseUsageWindows({
+      'rate_limit': {
+        'primary_window': {
+          'used_percent': 26,
+          'limit_window_seconds': 18000,
+          'reset_at': 1789215360,
+        },
+        'secondary_window': {
+          'used_percent': 4,
+          'limit_window_seconds': 604800,
+          'reset_at': 1789811760,
+        },
+        'monthly_window': {
+          'used_percent': 12,
+          'limit_window_seconds': 2592000,
+          'reset_at': 1791898560,
+        },
+      },
+    });
+
+    expect(windows[18000]?.remainingPercent, 74);
+    expect(windows[604800]?.remainingPercent, 96);
+    expect(windows[2592000]?.remainingPercent, 88);
   });
 
   test('marks old successful data as expired', () {

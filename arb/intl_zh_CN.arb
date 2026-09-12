@@ -17,7 +17,7 @@
   "outboundMode": "出站模式",
   "networkDetection": "网络检测",
   "codexAccounts": "Codex 账户",
-  "codexAccountsHint": "只读 CodexBar 快照；刷新按钮只重新读取文件",
+  "codexAccountsHint": "优先由 FlClash 独立读取 Codex 额度；失败时回退到快照或本地缓存",
   "codexFiveHour": "5 小时额度",
   "codexWeekly": "周额度",
   "codexUsedRemaining": "已用 {used} · 剩余 {remaining}",

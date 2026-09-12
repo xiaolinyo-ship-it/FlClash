@@ -17,7 +17,7 @@
   "outboundMode": "アウトバウンドモード",
   "networkDetection": "ネットワーク検出",
   "codexAccounts": "Codex アカウント",
-  "codexAccountsHint": "CodexBar スナップショットを読み取り専用で表示します。更新はファイルを再読み取りします",
+  "codexAccountsHint": "FlClash が Codex 使用量を直接読み取り、失敗時はスナップショットまたはキャッシュに戻します",
   "codexFiveHour": "5 時間の使用量",
   "codexWeekly": "週間の使用量",
   "codexUsedRemaining": "使用済み {used} · 残り {remaining}",
