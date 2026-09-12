@@ -42,6 +42,13 @@ class CodexQuotaWindow {
 
   bool get isExhausted =>
       isConsistent && (usedPercent! >= 100 || remainingPercent! <= 0);
+
+  Map<String, dynamic> toCacheJson() => {
+    'limitWindowSeconds': limitWindowSeconds,
+    'usedPercent': usedPercent,
+    'remainingPercent': remainingPercent,
+    'resetAt': resetAt?.toUtc().toIso8601String(),
+  };
 }
 
 class CodexAccountCardData {
@@ -69,6 +76,33 @@ class CodexAccountCardData {
       !fiveHour!.isConsistent ||
       !weekly!.isConsistent;
 
+  Map<String, dynamic> toCacheJson() => {
+    'id': id,
+    'displayName': displayName,
+    'fiveHour': fiveHour?.toCacheJson(),
+    'weekly': weekly?.toCacheJson(),
+    'updatedAt': updatedAt?.toUtc().toIso8601String(),
+  };
+
+  factory CodexAccountCardData.fromCacheJson(Map<String, dynamic> json) {
+    final id = _readString(json['id']);
+    final displayName = _readString(json['displayName']);
+    final fiveHour = _parseWindow(json['fiveHour']);
+    final weekly = _parseWindow(json['weekly']);
+    if (id == null || displayName == null || fiveHour == null || weekly == null) {
+      throw const FormatException('cached account entry is invalid');
+    }
+    return CodexAccountCardData(
+      id: id,
+      providerAccountId: null,
+      email: null,
+      displayName: displayName,
+      fiveHour: fiveHour,
+      weekly: weekly,
+      updatedAt: _readDateTime(json['updatedAt']),
+    );
+  }
+
   CodexAccountStatus statusAt(DateTime now) {
     if (hasDataAnomaly) {
       return CodexAccountStatus.dataAnomaly;
@@ -89,6 +123,30 @@ class CodexAccountSnapshot {
   final DateTime readAt;
 
   const CodexAccountSnapshot({required this.accounts, required this.readAt});
+
+  Map<String, dynamic> toCacheJson() => {
+    'version': 1,
+    'readAt': readAt.toUtc().toIso8601String(),
+    'accounts': accounts.map((account) => account.toCacheJson()).toList(),
+  };
+
+  factory CodexAccountSnapshot.fromCacheJson(Map<String, dynamic> json) {
+    final readAt = _readDateTime(json['readAt']);
+    final accountsValue = json['accounts'];
+    if (readAt == null || accountsValue is! List) {
+      throw const FormatException('cached snapshot is invalid');
+    }
+    final accounts = accountsValue.map((value) {
+      if (value is! Map) {
+        throw const FormatException('cached account entry is invalid');
+      }
+      return CodexAccountCardData.fromCacheJson(
+        Map<String, dynamic>.from(value),
+      );
+    }).toList();
+    accounts.sort((left, right) => left.id.compareTo(right.id));
+    return CodexAccountSnapshot(accounts: accounts, readAt: readAt);
+  }
 
   factory CodexAccountSnapshot.fromJson(
     Map<String, dynamic> json, {
@@ -143,70 +201,143 @@ class CodexAccountSnapshot {
 class CodexSnapshotReadResult {
   final CodexAccountSnapshot? snapshot;
   final CodexSnapshotReadFailure? failure;
+  final bool fromCache;
 
   const CodexSnapshotReadResult({
     required this.snapshot,
     required this.failure,
+    this.fromCache = false,
   });
 }
 
 class CodexAccountSnapshotReader {
   final Future<String> Function()? readText;
   final String? snapshotPath;
+  final String? cachePath;
   final DateTime Function() _clock;
 
   CodexAccountSnapshotReader({
     this.readText,
     this.snapshotPath,
+    this.cachePath,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
   Future<CodexSnapshotReadResult> read() async {
     final readAt = _clock();
+    CodexSnapshotReadResult liveResult;
     try {
       final raw = await _readRaw();
       dynamic decoded;
       try {
         decoded = jsonDecode(raw);
       } on FormatException {
-        return const CodexSnapshotReadResult(
+        liveResult = const CodexSnapshotReadResult(
           snapshot: null,
           failure: CodexSnapshotReadFailure.invalidJson,
         );
+        return await _withCacheFallback(liveResult);
       }
       if (decoded is! Map) {
-        return const CodexSnapshotReadResult(
+        liveResult = const CodexSnapshotReadResult(
           snapshot: null,
           failure: CodexSnapshotReadFailure.invalidShape,
         );
+        return await _withCacheFallback(liveResult);
       }
       try {
         final snapshot = CodexAccountSnapshot.fromJson(
           Map<String, dynamic>.from(decoded),
           readAt: readAt,
         );
+        await _writeCache(snapshot);
         return CodexSnapshotReadResult(snapshot: snapshot, failure: null);
       } on FormatException {
-        return const CodexSnapshotReadResult(
+        liveResult = const CodexSnapshotReadResult(
           snapshot: null,
           failure: CodexSnapshotReadFailure.invalidShape,
         );
+        return await _withCacheFallback(liveResult);
       }
     } on FileSystemException {
-      return const CodexSnapshotReadResult(
+      liveResult = const CodexSnapshotReadResult(
         snapshot: null,
         failure: CodexSnapshotReadFailure.fileUnavailable,
       );
+      return await _withCacheFallback(liveResult);
     } on UnsupportedError {
-      return const CodexSnapshotReadResult(
+      liveResult = const CodexSnapshotReadResult(
         snapshot: null,
         failure: CodexSnapshotReadFailure.unsupportedPlatform,
       );
+      return await _withCacheFallback(liveResult);
     } catch (_) {
-      return const CodexSnapshotReadResult(
+      liveResult = const CodexSnapshotReadResult(
         snapshot: null,
         failure: CodexSnapshotReadFailure.unknown,
       );
+      return await _withCacheFallback(liveResult);
+    }
+  }
+
+  Future<CodexSnapshotReadResult> _withCacheFallback(
+    CodexSnapshotReadResult liveResult,
+  ) async {
+    final cached = await _readCache();
+    if (cached == null) {
+      return liveResult;
+    }
+    return CodexSnapshotReadResult(
+      snapshot: cached,
+      failure: liveResult.failure,
+      fromCache: true,
+    );
+  }
+
+  String? get _resolvedCachePath {
+    if (cachePath != null) {
+      return cachePath;
+    }
+    final appData = Platform.environment['APPDATA'];
+    if (!Platform.isWindows || appData == null || appData.isEmpty) {
+      return null;
+    }
+    return path.join(appData, 'FlClash', 'codex-accounts-cache.json');
+  }
+
+  Future<void> _writeCache(CodexAccountSnapshot snapshot) async {
+    final resolvedPath = _resolvedCachePath;
+    if (resolvedPath == null) {
+      return;
+    }
+    try {
+      final file = File(resolvedPath);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(jsonEncode(snapshot.toCacheJson()), flush: true);
+    } catch (_) {
+      // Cache persistence is best effort and must not affect live display.
+    }
+  }
+
+  Future<CodexAccountSnapshot?> _readCache() async {
+    final resolvedPath = _resolvedCachePath;
+    if (resolvedPath == null) {
+      return null;
+    }
+    try {
+      final file = File(resolvedPath);
+      if (!await file.exists()) {
+        return null;
+      }
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map) {
+        return null;
+      }
+      return CodexAccountSnapshot.fromCacheJson(
+        Map<String, dynamic>.from(decoded),
+      );
+    } catch (_) {
+      return null;
     }
   }
 

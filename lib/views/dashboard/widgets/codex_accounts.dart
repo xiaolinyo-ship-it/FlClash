@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
@@ -22,17 +24,29 @@ class CodexAccounts extends StatefulWidget {
 }
 
 class _CodexAccountsState extends State<CodexAccounts> {
+  static const _autoRefreshInterval = Duration(seconds: 30);
+
   late final CodexAccountSnapshotReader _reader;
   CodexAccountSnapshot? _snapshot;
   CodexSnapshotReadFailure? _failure;
   Set<String> _missingAccountIds = {};
   bool _loading = false;
+  Timer? _autoRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _reader = widget.reader ?? CodexAccountSnapshotReader(clock: widget.clock);
     _load();
+    if (system.isWindows) {
+      _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) => _load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

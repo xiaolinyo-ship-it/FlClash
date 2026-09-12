@@ -149,4 +149,39 @@ void main() {
     expect(invalidJson.failure, CodexSnapshotReadFailure.invalidJson);
     expect(invalidShape.failure, CodexSnapshotReadFailure.invalidShape);
   });
+
+  test('persists sanitized account data and falls back to it', () async {
+    final temp = await Directory.systemTemp.createTemp('flclash-codex-cache-');
+    final cachePath = '${temp.path}/codex-accounts-cache.json';
+    addTearDown(() => temp.delete(recursive: true));
+
+    final live = CodexAccountSnapshotReader(
+      cachePath: cachePath,
+      readText: () async => jsonEncode({
+        'snapshots': {
+          'stable-account': _account(
+            email: 'stable@example.com',
+            primary: _window(18000, 20, 80),
+            secondary: _window(604800, 30, 70),
+          ),
+        },
+      }),
+    );
+    final liveResult = await live.read();
+    expect(liveResult.failure, isNull);
+    expect(liveResult.fromCache, isFalse);
+
+    final cacheText = await File(cachePath).readAsString();
+    expect(cacheText, isNot(contains('stable@example.com')));
+
+    final fallback = CodexAccountSnapshotReader(
+      cachePath: cachePath,
+      readText: () async => '{',
+    );
+    final fallbackResult = await fallback.read();
+    expect(fallbackResult.failure, CodexSnapshotReadFailure.invalidJson);
+    expect(fallbackResult.fromCache, isTrue);
+    expect(fallbackResult.snapshot?.accounts.single.displayName,
+        'st***@example.com');
+  });
 }
