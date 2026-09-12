@@ -238,10 +238,9 @@ class CodexAccountLiveReader {
         jsonEncode({
           'version': 1,
           'accounts': records
-              .map((record) => {
-                    'id': record.stableId,
-                    'home': record.home.path,
-                  })
+              .map(
+                (record) => {'id': record.stableId, 'home': record.home.path},
+              )
               .toList(),
         }),
         flush: true,
@@ -278,11 +277,13 @@ class CodexAccountLiveReader {
       final refreshToken = _string(tokenMap['refresh_token']);
       final idToken = _string(tokenMap['id_token']);
       final providerAccountId =
-          _string(tokenMap['account_id']) ?? _jwtString(idToken, [
+          _string(tokenMap['account_id']) ??
+          _jwtString(idToken, [
             'https://api.openai.com/auth.chatgpt_account_id',
             'chatgpt_account_id',
           ]);
-      final email = _string(document['email']) ??
+      final email =
+          _string(document['email']) ??
           _jwtString(idToken, ['email']) ??
           _jwtString(idToken, ['https://api.openai.com/profile.email']);
       return _CodexAuthRecord(
@@ -293,7 +294,10 @@ class CodexAccountLiveReader {
         idToken: idToken,
         email: email,
         providerAccountId: providerAccountId,
-        isAmbient: _samePath(home.path, ambientHomePath ?? _defaultAmbientHome()),
+        isAmbient: _samePath(
+          home.path,
+          ambientHomePath ?? _defaultAmbientHome(),
+        ),
         lastRefresh: _date(document['last_refresh']),
       );
     } on FormatException {
@@ -339,7 +343,9 @@ class CodexAccountLiveReader {
       current = refreshed;
       response = await _getUsage(current);
     }
-    if (response == null || response.statusCode != 200 || response.data is! Map) {
+    if (response == null ||
+        response.statusCode != 200 ||
+        response.data is! Map) {
       return null;
     }
     return Map<String, dynamic>.from(response.data as Map);
@@ -443,15 +449,13 @@ class CodexAccountLiveReader {
     final windows = <int, CodexQuotaWindow>{};
     void addWindow(dynamic value, int? hint) {
       if (value is Map) {
-        final window = _parseLiveWindow(
-          Map<String, dynamic>.from(value),
-          hint,
-        );
+        final window = _parseLiveWindow(Map<String, dynamic>.from(value), hint);
         if (window != null && window.limitWindowSeconds != null) {
           windows[window.limitWindowSeconds!] = window;
         }
       }
     }
+
     final rateLimit = payload['rate_limit'] ?? payload['rateLimit'];
     if (rateLimit is Map) {
       final rate = Map<String, dynamic>.from(rateLimit);
@@ -496,7 +500,8 @@ class CodexAccountLiveReader {
     int? hintedDuration,
   ) {
     final used = _number(value['used_percent'] ?? value['usedPercent']);
-    final duration = _int(value['limit_window_seconds']) ??
+    final duration =
+        _int(value['limit_window_seconds']) ??
         _int(value['limitWindowSeconds']) ??
         hintedDuration;
     if (used == null || duration == null) {
@@ -511,7 +516,9 @@ class CodexAccountLiveReader {
   }
 
   static int? _durationHint(String key) {
-    if (key.contains('primary') || key.contains('session') || key.contains('five')) {
+    if (key.contains('primary') ||
+        key.contains('session') ||
+        key.contains('five')) {
       return 18000;
     }
     if (key.contains('secondary') || key.contains('week')) {
@@ -682,7 +689,8 @@ String? _jwtString(String? token, List<String> keys) {
       if (direct == null && key.startsWith('https://api.openai.com/profile.')) {
         final profile = payload['https://api.openai.com/profile'];
         if (profile is Map) {
-          direct = profile[key.substring('https://api.openai.com/profile.'.length)];
+          direct =
+              profile[key.substring('https://api.openai.com/profile.'.length)];
         }
       }
       if (direct != null) {
@@ -715,7 +723,8 @@ bool _samePath(String left, String? right) {
   if (right == null || right.isEmpty) {
     return false;
   }
-  return path.normalize(left).toLowerCase() == path.normalize(right).toLowerCase();
+  return path.normalize(left).toLowerCase() ==
+      path.normalize(right).toLowerCase();
 }
 
 String _displayName(String id, String? email) {

@@ -89,7 +89,10 @@ void main() {
 
     final account = snapshot.accounts.single;
     expect(account.hasDataAnomaly, isFalse);
-    expect(account.statusAt(DateTime(2026, 9, 12, 12)), CodexAccountStatus.exhausted);
+    expect(
+      account.statusAt(DateTime(2026, 9, 12, 12)),
+      CodexAccountStatus.exhausted,
+    );
     expect(account.weekly?.usedPercent, 100);
     expect(account.weekly?.remainingPercent, 0);
   });
@@ -145,18 +148,9 @@ void main() {
 
     final arrayWindows = CodexAccountLiveReader.parseUsageWindows({
       'rate_limits': [
-        {
-          'used_percent': 10,
-          'limit_window_seconds': 18000,
-        },
-        {
-          'used_percent': 20,
-          'limit_window_seconds': 604800,
-        },
-        {
-          'used_percent': 30,
-          'limit_window_seconds': 2592000,
-        },
+        {'used_percent': 10, 'limit_window_seconds': 18000},
+        {'used_percent': 20, 'limit_window_seconds': 604800},
+        {'used_percent': 30, 'limit_window_seconds': 2592000},
       ],
     });
     expect(arrayWindows[2592000]?.remainingPercent, 70);
@@ -223,7 +217,9 @@ void main() {
     final fallbackResult = await fallback.read();
     expect(fallbackResult.failure, CodexSnapshotReadFailure.invalidJson);
     expect(fallbackResult.fromCache, isTrue);
-    expect(fallbackResult.snapshot?.accounts.single.displayName,
-        'st***@example.com');
+    expect(
+      fallbackResult.snapshot?.accounts.single.displayName,
+      'st***@example.com',
+    );
   });
 }
