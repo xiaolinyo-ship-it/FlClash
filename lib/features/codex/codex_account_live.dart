@@ -646,7 +646,14 @@ DateTime? _date(dynamic value) {
     ).toLocal();
   }
   final raw = _string(value);
-  return raw == null ? null : DateTime.tryParse(raw)?.toLocal();
+  if (raw == null) {
+    return null;
+  }
+  final normalized = raw.replaceFirstMapped(
+    RegExp(r'(\.\d{6})\d+(?=Z$|[+-]\d{2}:?\d{2}$)'),
+    (match) => match.group(1)!,
+  );
+  return DateTime.tryParse(normalized)?.toLocal();
 }
 
 String? _jwtString(String? token, List<String> keys) {
