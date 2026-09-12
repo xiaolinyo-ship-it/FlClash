@@ -179,10 +179,7 @@ class AppTray implements TrayPort {
     final snapshot = result.snapshot;
     if (snapshot == null || snapshot.accounts.isEmpty) {
       return [
-        const TrayMenuSubmenu(
-          label: 'Codex：额度不可用',
-          items: <TrayMenuItem>[],
-        ),
+        const TrayMenuSubmenu(label: 'Codex：额度不可用', items: <TrayMenuItem>[]),
       ];
     }
     return [
@@ -190,10 +187,7 @@ class AppTray implements TrayPort {
         label: 'Codex：${snapshot.accounts.length} 个账户',
         items: [
           for (final account in snapshot.accounts)
-            TrayMenuAction(
-              label: _trayAccountLabel(account),
-              enabled: false,
-            ),
+            TrayMenuAction(label: _trayAccountLabel(account), enabled: false),
         ],
       ),
     ];
