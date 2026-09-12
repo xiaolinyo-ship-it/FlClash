@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'widgets/core_status_button.dart';
+import 'widgets/codex_accounts.dart';
 import 'widgets/start_button.dart';
 
 typedef _IsEditWidgetBuilder = Widget Function(bool isEdit);
@@ -209,7 +210,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                       max(4 * ((constraints.maxWidth / 280).ceil()), 8),
                       _maxCrossAxisCount,
                     );
-                    return isEdit
+                    final grid = isEdit
                         ? BackLayerScope(
                             onBack: _handleExitEdit,
                             child: SuperGrid(
@@ -229,6 +230,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             mainAxisSpacing: spacing,
                             children: children,
                           );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        grid,
+                        const SizedBox(height: 14),
+                        const CodexAccounts(),
+                      ],
+                    );
                   },
                 ),
               ),

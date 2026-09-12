@@ -1,0 +1,88 @@
+name: Codex dashboard validation
+
+on:
+  push:
+    branches:
+      - codex/flclash-codex-dashboard
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.44.4'
+
+jobs:
+  test:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate localization
+        run: dart run intl_utils:generate
+
+      - name: Upload generated localization
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-generated-localization
+          path: lib/l10n
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib/features/codex lib/views/dashboard/widgets/codex_accounts.dart test/features/codex
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Codex snapshot tests
+        run: flutter test --reporter expanded test/features/codex/codex_account_snapshot_test.dart
+
+  windows-build:
+    name: Windows debug build
+    runs-on: windows-2022
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Enable git long paths
+        run: git config --global core.longpaths true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Build Windows debug application
+        run: |
+          flutter pub get
+          flutter build windows --debug
+
+      - name: Upload debug build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-windows-debug
+          path: build/windows/x64/runner/Debug
