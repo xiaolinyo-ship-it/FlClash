@@ -205,7 +205,12 @@ class CodexAccountLiveReader {
           accountIdentities.add(id.toLowerCase());
         }
         if (entry.value is Map) {
-          final email = _string((entry.value as Map)['email']);
+          final value = entry.value as Map;
+          final providerAccountId = _string(value['providerAccountId']);
+          if (providerAccountId != null) {
+            accountIdentities.add(providerAccountId.toLowerCase());
+          }
+          final email = _string(value['email']);
           if (email != null) {
             accountIdentities.add(email.toLowerCase());
           }
@@ -536,6 +541,9 @@ class CodexAccountLiveReader {
       }
     } on FileSystemException {
       // Use the public default endpoint.
+    }
+    if (!base.startsWith('https://')) {
+      base = _codexUsageBase;
     }
     base = base.replaceFirst(RegExp(r'/+$'), '');
     if ((base.startsWith('https://chatgpt.com') ||
