@@ -352,7 +352,12 @@ class CodexAccountSnapshotReader {
     if (cachePath != null) {
       return cachePath;
     }
-    final appData = Platform.environment['APPDATA'];
+    final smokeDataDir = const bool.fromEnvironment('FLCLASH_CODEX_GUI_SMOKE')
+        ? Platform.environment['FLCLASH_CODEX_GUI_SMOKE_DATA_DIR']
+        : null;
+    final appData = smokeDataDir?.isNotEmpty == true
+        ? smokeDataDir
+        : Platform.environment['APPDATA'];
     if (!Platform.isWindows || appData == null || appData.isEmpty) {
       return null;
     }

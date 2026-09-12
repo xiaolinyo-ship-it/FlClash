@@ -271,7 +271,7 @@ class CodexAccountLiveReader {
     if (registryPath != null && registryPath!.isNotEmpty) {
       return File(registryPath!);
     }
-    final appData = Platform.environment['APPDATA'];
+    final appData = _flClashDataPath();
     if (appData == null || appData.isEmpty) {
       return null;
     }
@@ -588,6 +588,16 @@ class CodexAccountLiveReader {
       return null;
     }
     return path.join(appData, 'CodexBar', 'codex-accounts');
+  }
+
+  String? _flClashDataPath() {
+    final smokeDataDir = const bool.fromEnvironment('FLCLASH_CODEX_GUI_SMOKE')
+        ? Platform.environment['FLCLASH_CODEX_GUI_SMOKE_DATA_DIR']
+        : null;
+    if (smokeDataDir != null && smokeDataDir.isNotEmpty) {
+      return smokeDataDir;
+    }
+    return Platform.environment['APPDATA'];
   }
 
   String? _defaultAmbientHome() {
