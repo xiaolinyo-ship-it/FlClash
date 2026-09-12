@@ -17,9 +17,12 @@ Future<void> _pumpLoaded(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-CodexAccountSnapshotReader _reader({Future<String> Function()? readText}) {
+CodexAccountSnapshotReader _reader({
+  required String contents,
+  Future<String> Function()? readText,
+}) {
   return CodexAccountSnapshotReader(
-    readText: readText ?? _fixture,
+    readText: readText ?? () async => contents,
     clock: () => DateTime(2026, 9, 12, 17),
   );
 }
@@ -28,6 +31,7 @@ void main() {
   testWidgets('renders three stable account cards and independent quotas', (
     tester,
   ) async {
+    final contents = await _fixture();
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -37,7 +41,7 @@ void main() {
       TestApp(
         child: SingleChildScrollView(
           child: CodexAccounts(
-            reader: _reader(),
+            reader: _reader(contents: contents),
             isWindows: true,
           ),
         ),
@@ -75,11 +79,13 @@ void main() {
   testWidgets('refresh rereads the snapshot without changing the card mapping', (
     tester,
   ) async {
+    final contents = await _fixture();
     var reads = 0;
     final reader = _reader(
+      contents: contents,
       readText: () async {
         reads++;
-        return _fixture();
+        return contents;
       },
     );
 
@@ -105,6 +111,7 @@ void main() {
   });
 
   testWidgets('fits a narrow dashboard without overflow', (tester) async {
+    final contents = await _fixture();
     tester.view.physicalSize = const Size(480, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -114,7 +121,7 @@ void main() {
       TestApp(
         child: SingleChildScrollView(
           child: CodexAccounts(
-            reader: _reader(),
+            reader: _reader(contents: contents),
             isWindows: true,
           ),
         ),
