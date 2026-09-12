@@ -54,7 +54,7 @@ class CodexAccountLiveReader {
       }
       final key = record.providerAccountId ?? record.email ?? home.path;
       final previous = byIdentity[key.toLowerCase()];
-      if (previous == null || (!previous.isAmbient && record.isAmbient)) {
+      if (previous == null || _preferRecord(record, previous)) {
         byIdentity[key.toLowerCase()] = record;
       }
     }
@@ -294,6 +294,7 @@ class CodexAccountLiveReader {
         email: email,
         providerAccountId: providerAccountId,
         isAmbient: _samePath(home.path, ambientHomePath ?? _defaultAmbientHome()),
+        lastRefresh: _date(document['last_refresh']),
       );
     } on FormatException {
       return null;
@@ -420,6 +421,7 @@ class CodexAccountLiveReader {
         email: record.email ?? _jwtString(idToken, ['email']),
         providerAccountId: record.providerAccountId,
         isAmbient: record.isAmbient,
+        lastRefresh: record.lastRefresh,
       );
     } on DioException {
       return null;
@@ -583,6 +585,7 @@ class _CodexAuthRecord {
   final String? email;
   final String? providerAccountId;
   final bool isAmbient;
+  final DateTime? lastRefresh;
 
   const _CodexAuthRecord({
     required this.home,
@@ -593,12 +596,28 @@ class _CodexAuthRecord {
     required this.email,
     required this.providerAccountId,
     required this.isAmbient,
+    required this.lastRefresh,
   });
 
   String get stableId => providerAccountId ?? path.basename(home.path);
 
   String get identityKey =>
       (providerAccountId ?? email ?? home.path).toLowerCase();
+}
+
+bool _preferRecord(_CodexAuthRecord candidate, _CodexAuthRecord current) {
+  if (candidate.isAmbient != current.isAmbient) {
+    return candidate.isAmbient;
+  }
+  final candidateRefresh = candidate.lastRefresh;
+  final currentRefresh = current.lastRefresh;
+  if (candidateRefresh != null && currentRefresh == null) {
+    return true;
+  }
+  if (candidateRefresh != null && currentRefresh != null) {
+    return candidateRefresh.isAfter(currentRefresh);
+  }
+  return false;
 }
 
 bool _isUnauthorized(Response<dynamic>? response) {

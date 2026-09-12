@@ -142,6 +142,24 @@ void main() {
     expect(windows[18000]?.remainingPercent, 74);
     expect(windows[604800]?.remainingPercent, 96);
     expect(windows[2592000]?.remainingPercent, 88);
+
+    final arrayWindows = CodexAccountLiveReader.parseUsageWindows({
+      'rate_limits': [
+        {
+          'used_percent': 10,
+          'limit_window_seconds': 18000,
+        },
+        {
+          'used_percent': 20,
+          'limit_window_seconds': 604800,
+        },
+        {
+          'used_percent': 30,
+          'limit_window_seconds': 2592000,
+        },
+      ],
+    });
+    expect(arrayWindows[2592000]?.remainingPercent, 70);
   });
 
   test('marks old successful data as expired', () {
