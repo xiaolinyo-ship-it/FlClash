@@ -121,3 +121,117 @@ jobs:
               throw "Missing Windows artifact file: $relative"
             }
           }
+
+      - name: Run Windows GUI smoke test (界面冒烟测试)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+
+          $smokeRoot = Join-Path $env:RUNNER_TEMP 'flclash-codex-gui-smoke'
+          $appData = Join-Path $smokeRoot 'AppData\Roaming'
+          $codexDir = Join-Path $appData 'CodexBar\codex-accounts'
+          $fixture = 'test/fixtures/codex/snapshots_three_accounts.json'
+          $exe = Join-Path (Get-Location) 'build/windows/x64/runner/Debug/FlClash.exe'
+          $process = $null
+
+          New-Item -ItemType Directory -Force -Path $codexDir | Out-Null
+          Copy-Item -LiteralPath $fixture -Destination (Join-Path $codexDir 'snapshots.json') -Force
+
+          # Seed only non-sensitive UI preferences so the first-run disclaimer
+          # does not block the dashboard. No profile, proxy, or credential data
+          # is written to the isolated runner directory.
+          $config = @{
+            appSettingProps = @{
+              disclaimerAccepted = $true
+              silentLaunch = $false
+              hidden = $false
+              autoRun = $false
+              locale = 'en'
+            }
+            themeProps = @{}
+          } | ConvertTo-Json -Compress -Depth 8
+          @{ config = $config; version = 2026091001 } |
+            ConvertTo-Json -Compress -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $appData 'shared_preferences.json') -Encoding utf8
+
+          $env:APPDATA = $appData
+          try {
+            $process = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru
+            $deadline = (Get-Date).AddSeconds(60)
+            do {
+              Start-Sleep -Milliseconds 500
+              $process.Refresh()
+              if ($process.HasExited) {
+                throw "FlClash exited before GUI became ready with code $($process.ExitCode)"
+              }
+              $handle = $process.MainWindowHandle
+            } while ($handle -eq 0 -and (Get-Date) -lt $deadline)
+
+            if ($handle -eq 0) {
+              throw 'FlClash process started but did not expose a main window within 60 seconds'
+            }
+
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
+            $all = $window.FindAll(
+              [System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition
+            )
+            $names = @(
+              for ($i = 0; $i -lt $all.Count; $i++) {
+                $name = $all[$i].Current.Name
+                if ($name) { $name }
+              }
+            )
+            $joinedNames = $names -join "`n"
+            $joinedNames | Set-Content -LiteralPath (Join-Path $smokeRoot 'automation-names.txt') -Encoding utf8
+
+            foreach ($expected in @('Codex', 'al***@example.invalid', 'be***@example.invalid', 'ga***@example.invalid')) {
+              if ($joinedNames -notmatch [regex]::Escape($expected)) {
+                throw "GUI did not expose expected account text: $expected"
+              }
+            }
+            foreach ($expected in @('5-hour', 'Weekly')) {
+              if ($joinedNames -notmatch [regex]::Escape($expected)) {
+                throw "GUI did not expose expected quota label: $expected"
+              }
+            }
+
+            $button = $null
+            for ($i = 0; $i -lt $all.Count; $i++) {
+              $candidate = $all[$i]
+              if ($candidate.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+                  $candidate.Current.Name -match 'Update|Refresh|更新|刷新') {
+                $button = $candidate
+                break
+              }
+            }
+            if ($null -eq $button) {
+              throw 'GUI did not expose the Codex refresh button'
+            }
+            $invoke = $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+            $invoke.Invoke()
+            Start-Sleep -Seconds 2
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw 'FlClash exited after the Codex refresh action'
+            }
+
+            "GUI smoke test passed: window=$handle, names=$($names.Count)" |
+              Set-Content -LiteralPath (Join-Path $smokeRoot 'result.txt') -Encoding utf8
+          }
+          finally {
+            if ($null -ne $process -and -not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+              $process.WaitForExit(10000)
+            }
+          }
+
+      - name: Upload Windows GUI smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-latest-gui-smoke-evidence
+          path: ${{ runner.temp }}/flclash-codex-gui-smoke
+          if-no-files-found: warn
