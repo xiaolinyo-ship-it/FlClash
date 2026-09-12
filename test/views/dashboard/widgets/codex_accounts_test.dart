@@ -127,7 +127,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpLoaded(tester);
 
     expect(find.text('al***@example.invalid'), findsOneWidget);
     expect(tester.takeException(), isNull);
