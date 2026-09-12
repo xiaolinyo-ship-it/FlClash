@@ -1,7 +1,10 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:material_ui/material_ui.dart' as material_ui;
 
 class CodexAccounts extends StatefulWidget {
   final CodexAccountSnapshotReader? reader;
@@ -403,7 +406,10 @@ String _statusText(AppLocalizations localizations, CodexAccountStatus status) {
   };
 }
 
-Color _statusColor(ColorScheme colorScheme, CodexAccountStatus status) {
+Color _statusColor(
+  material_ui.ColorScheme colorScheme,
+  CodexAccountStatus status,
+) {
   return switch (status) {
     CodexAccountStatus.normal => colorScheme.primary,
     CodexAccountStatus.exhausted => colorScheme.error,
