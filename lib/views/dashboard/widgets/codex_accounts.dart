@@ -24,7 +24,7 @@ class CodexAccounts extends StatefulWidget {
 }
 
 class _CodexAccountsState extends State<CodexAccounts> {
-  static const _autoRefreshInterval = Duration(seconds: 30);
+  static const _autoRefreshInterval = Duration(minutes: 2);
 
   late final CodexAccountSnapshotReader _reader;
   CodexAccountSnapshot? _snapshot;
