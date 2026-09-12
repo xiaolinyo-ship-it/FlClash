@@ -432,7 +432,8 @@ CodexQuotaWindow? _parseWindow(dynamic value) {
     // If both values are present, preserve them so CodexQuotaWindow can flag
     // contradictory legacy snapshots (for example 100 used / 23 remaining).
     // Only synthesize the complement when the producer omitted remainingPercent.
-    remainingPercent: storedRemainingPercent ??
+    remainingPercent:
+        storedRemainingPercent ??
         (usedPercent == null
             ? null
             : (100 - usedPercent).clamp(0, 100).toDouble()),
