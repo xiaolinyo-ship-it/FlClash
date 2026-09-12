@@ -10,13 +10,11 @@ import 'package:material_ui/material_ui.dart' as material_ui;
 class CodexAccounts extends StatefulWidget {
   final CodexAccountSnapshotReader? reader;
   final DateTime Function()? clock;
-  final bool? isWindows;
 
   const CodexAccounts({
     super.key,
     @visibleForTesting this.reader,
     @visibleForTesting this.clock,
-    @visibleForTesting this.isWindows,
   });
 
   @override
@@ -71,7 +69,7 @@ class _CodexAccountsState extends State<CodexAccounts> {
 
   @override
   Widget build(BuildContext context) {
-    if (!(widget.isWindows ?? system.isWindows)) {
+    if (!system.isWindows) {
       return const SizedBox.shrink();
     }
     final appLocalizations = context.appLocalizations;

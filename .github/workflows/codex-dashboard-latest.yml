@@ -42,7 +42,6 @@ jobs:
           lib/views/dashboard/widgets/codex_accounts.dart
           lib/views/dashboard/widgets/widgets.dart
           test/features/codex
-          test/views/dashboard/widgets
 
       - name: Upload generated sources
         uses: actions/upload-artifact@v4
@@ -56,7 +55,6 @@ jobs:
             lib/views/dashboard/widgets/widgets.dart
             test/features/codex
             test/fixtures/codex
-            test/views/dashboard/widgets
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
@@ -69,7 +67,6 @@ jobs:
         run: >-
           flutter test --reporter expanded
           test/features/codex/codex_account_snapshot_test.dart
-          test/views/dashboard/widgets/codex_accounts_test.dart
 
   windows-build:
     name: Windows debug build

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,6 +29,27 @@ Map<String, dynamic> _account({
 }
 
 void main() {
+  test('parses the sanitized three-account fixture end to end', () async {
+    final raw = await File(
+      'test/fixtures/codex/snapshots_three_accounts.json',
+    ).readAsString();
+    final snapshot = CodexAccountSnapshot.fromJson(
+      Map<String, dynamic>.from(jsonDecode(raw) as Map),
+      readAt: DateTime(2026, 9, 12, 17),
+    );
+
+    expect(snapshot.accounts.map((account) => account.id), [
+      '10000000-0000-4000-8000-000000000001',
+      '20000000-0000-4000-8000-000000000002',
+      '30000000-0000-4000-8000-000000000003',
+    ]);
+    expect(snapshot.accounts[0].fiveHour?.usedPercent, 25);
+    expect(snapshot.accounts[0].weekly?.remainingPercent, 60);
+    expect(snapshot.accounts[1].fiveHour?.isExhausted, isTrue);
+    expect(snapshot.accounts[1].weekly?.isExhausted, isFalse);
+    expect(snapshot.accounts[2].hasDataAnomaly, isTrue);
+  });
+
   test('sorts accounts by stable id and maps windows by duration', () {
     final snapshot = CodexAccountSnapshot.fromJson({
       'snapshots': {
