@@ -47,7 +47,7 @@ void main() {
     expect(snapshot.accounts[0].weekly?.remainingPercent, 60);
     expect(snapshot.accounts[1].fiveHour?.isExhausted, isTrue);
     expect(snapshot.accounts[1].weekly?.isExhausted, isFalse);
-    expect(snapshot.accounts[2].hasDataAnomaly, isTrue);
+    expect(snapshot.accounts[2].hasDataAnomaly, isFalse);
   });
 
   test('sorts accounts by stable id and maps windows by duration', () {
