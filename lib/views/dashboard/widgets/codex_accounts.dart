@@ -5,7 +5,6 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/widgets/widgets.dart';
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart' as material_ui;
 

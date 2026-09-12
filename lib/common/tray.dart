@@ -178,9 +178,7 @@ class AppTray implements TrayPort {
   List<TrayMenuItem> _buildCodexMenu(CodexSnapshotReadResult result) {
     final snapshot = result.snapshot;
     if (snapshot == null || snapshot.accounts.isEmpty) {
-      return [
-        const TrayMenuSubmenu(label: 'Codex：额度不可用', items: <TrayMenuItem>[]),
-      ];
+      return const [];
     }
     return [
       TrayMenuSubmenu(
@@ -196,7 +194,7 @@ class AppTray implements TrayPort {
   String _trayToolTip(CodexSnapshotReadResult result) {
     final snapshot = result.snapshot;
     if (snapshot == null || snapshot.accounts.isEmpty) {
-      return '$appName\nCodex：额度不可用';
+      return appName;
     }
     final first = snapshot.accounts.take(3).map(_trayAccountLabel).join('\n');
     return '$appName\n$first';
