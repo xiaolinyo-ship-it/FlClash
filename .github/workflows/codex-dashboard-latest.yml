@@ -38,6 +38,10 @@ jobs:
       - name: Format changed Dart sources
         run: >-
           dart format lib/features/codex
+          lib/common/path.dart
+          lib/common/tray.dart
+          lib/l10n/intl/messages_en.dart
+          lib/l10n/intl/messages_ru.dart
           lib/views/dashboard/dashboard.dart
           lib/views/dashboard/widgets/codex_accounts.dart
           lib/views/dashboard/widgets/widgets.dart
@@ -49,6 +53,8 @@ jobs:
           name: flclash-codex-dashboard-latest-generated
           path: |
             lib/l10n
+            lib/common/path.dart
+            lib/common/tray.dart
             lib/features/codex
             lib/views/dashboard/dashboard.dart
             lib/views/dashboard/widgets/codex_accounts.dart
