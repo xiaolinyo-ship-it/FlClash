@@ -106,13 +106,6 @@ class _CodexAccountsState extends State<CodexAccounts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  appLocalizations.codexAccountsHint,
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 if (failure != null)
                   _CodexMessage(
                     message: _failureText(appLocalizations, failure),
@@ -128,13 +121,6 @@ class _CodexAccountsState extends State<CodexAccounts> {
                       isError: true,
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  Text(
-                    appLocalizations.codexAccountsLoaded(
-                      snapshot.accounts.length,
-                    ),
-                    style: context.textTheme.labelMedium,
-                  ),
                   if (snapshot.accounts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
@@ -167,22 +153,6 @@ class _CodexAccountsState extends State<CodexAccounts> {
                               .toList(),
                         );
                       },
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      appLocalizations.codexCurrentNotConfirmed,
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      appLocalizations.codexSnapshotReadAt(
-                        _formatDate(snapshot.readAt),
-                      ),
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant,
-                      ),
                     ),
                   ],
                 ] else if (failure != null)
@@ -227,11 +197,24 @@ class _CodexAccountCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  account.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.titleSmall,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.code,
+                      size: 18,
+                      color: colorScheme.primary,
+                      semanticLabel: 'Codex',
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        account.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.titleSmall,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
