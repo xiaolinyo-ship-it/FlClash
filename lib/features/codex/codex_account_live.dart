@@ -666,7 +666,8 @@ class CodexAccountLiveReader {
       addRateLimitObject(appServerRateLimits);
     }
 
-    final byLimitId = payload['rateLimitsByLimitId'] ??
+    final byLimitId =
+        payload['rateLimitsByLimitId'] ??
         payload['appServerRateLimitsByLimitId'];
     if (byLimitId is Map) {
       for (final value in byLimitId.values) {
