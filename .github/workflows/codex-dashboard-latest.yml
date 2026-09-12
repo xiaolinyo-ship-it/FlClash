@@ -36,7 +36,13 @@ jobs:
         run: dart run intl_utils:generate
 
       - name: Format changed Dart sources
-        run: dart format lib/features/codex lib/views/dashboard/dashboard.dart lib/views/dashboard/widgets/codex_accounts.dart lib/views/dashboard/widgets/widgets.dart test/features/codex
+        run: >-
+          dart format lib/features/codex
+          lib/views/dashboard/dashboard.dart
+          lib/views/dashboard/widgets/codex_accounts.dart
+          lib/views/dashboard/widgets/widgets.dart
+          test/features/codex
+          test/views/dashboard/widgets
 
       - name: Upload generated sources
         uses: actions/upload-artifact@v4
@@ -49,6 +55,8 @@ jobs:
             lib/views/dashboard/widgets/codex_accounts.dart
             lib/views/dashboard/widgets/widgets.dart
             test/features/codex
+            test/fixtures/codex
+            test/views/dashboard/widgets
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
@@ -58,7 +66,10 @@ jobs:
           yq -i '.hooks.user_defines.setup.build_assets = false | .hooks.user_defines.rust_api.build_assets = false' pubspec.yaml
 
       - name: Run Codex snapshot tests
-        run: flutter test --reporter expanded test/features/codex/codex_account_snapshot_test.dart
+        run: >-
+          flutter test --reporter expanded
+          test/features/codex/codex_account_snapshot_test.dart
+          test/views/dashboard/widgets/codex_accounts_test.dart
 
   windows-build:
     name: Windows debug build
@@ -96,3 +107,20 @@ jobs:
         with:
           name: flclash-codex-dashboard-latest-windows-debug
           path: build/windows/x64/runner/Debug
+
+      - name: Verify Windows artifact contents
+        shell: pwsh
+        run: |
+          $root = 'build/windows/x64/runner/Debug'
+          $required = @(
+            'FlClash.exe',
+            'FlClashCore.exe',
+            'FlClashHelperService.exe',
+            'data/flutter_assets/AssetManifest.bin.json'
+          )
+          foreach ($relative in $required) {
+            $path = Join-Path $root $relative
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Missing Windows artifact file: $relative"
+            }
+          }
