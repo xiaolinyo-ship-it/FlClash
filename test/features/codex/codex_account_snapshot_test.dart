@@ -159,14 +159,8 @@ void main() {
   test('maps a monthly window nested in additional rate limits', () {
     final windows = CodexAccountLiveReader.parseUsageWindows({
       'rate_limit': {
-        'primary_window': {
-          'used_percent': 15,
-          'limit_window_seconds': 18000,
-        },
-        'secondary_window': {
-          'used_percent': 5,
-          'limit_window_seconds': 604800,
-        },
+        'primary_window': {'used_percent': 15, 'limit_window_seconds': 18000},
+        'secondary_window': {'used_percent': 5, 'limit_window_seconds': 604800},
       },
       'additional_rate_limits': [
         {
