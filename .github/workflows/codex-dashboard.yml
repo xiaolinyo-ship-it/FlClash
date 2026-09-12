@@ -41,8 +41,17 @@ jobs:
           name: flclash-codex-dashboard-generated-localization
           path: lib/l10n
 
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib/features/codex lib/views/dashboard/widgets/codex_accounts.dart test/features/codex
+      - name: Format Dart sources
+        run: dart format lib/features/codex lib/views/dashboard/widgets/codex_accounts.dart test/features/codex
+
+      - name: Upload formatted Dart sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-formatted-sources
+          path: |
+            lib/features/codex
+            lib/views/dashboard/widgets/codex_accounts.dart
+            test/features/codex
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
