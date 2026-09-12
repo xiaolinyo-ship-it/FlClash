@@ -94,16 +94,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Build normal Windows application (正式构建)
+      - name: Build normal Windows Release application (正式发布构建)
         run: |
           flutter pub get
-          flutter build windows --debug
+          flutter build windows --release
 
-      - name: Upload normal Windows application (正式构建产物)
+      - name: Upload normal Windows Release application (正式发布产物)
         uses: actions/upload-artifact@v4
         with:
-          name: flclash-codex-dashboard-latest-windows-production-debug
-          path: build/windows/x64/runner/Debug
+          name: flclash-codex-dashboard-latest-windows-production-release
+          path: build/windows/x64/runner/Release
 
       - name: Build Windows GUI smoke application (界面测试构建)
         run: |
@@ -118,7 +118,7 @@ jobs:
       - name: Verify Windows artifact contents
         shell: pwsh
         run: |
-          $root = 'build/windows/x64/runner/Debug'
+          $root = 'build/windows/x64/runner/Release'
           $required = @(
             'FlClash.exe',
             'FlClashCore.exe',
