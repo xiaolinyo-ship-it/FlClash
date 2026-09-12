@@ -170,6 +170,206 @@ class AppLocalizations {
     );
   }
 
+  /// `Codex accounts`
+  String get codexAccounts {
+    return Intl.message(
+      'Codex accounts',
+      name: 'codexAccounts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Read-only CodexBar snapshot; refresh rereads the file only`
+  String get codexAccountsHint {
+    return Intl.message(
+      'Read-only CodexBar snapshot; refresh rereads the file only',
+      name: 'codexAccountsHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `5-hour quota`
+  String get codexFiveHour {
+    return Intl.message(
+      '5-hour quota',
+      name: 'codexFiveHour',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Weekly quota`
+  String get codexWeekly {
+    return Intl.message(
+      'Weekly quota',
+      name: 'codexWeekly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Used {used} · Remaining {remaining}`
+  String codexUsedRemaining(Object used, Object remaining) {
+    return Intl.message(
+      'Used $used · Remaining $remaining',
+      name: 'codexUsedRemaining',
+      desc: '',
+      args: [used, remaining],
+    );
+  }
+
+  /// `Reset {time}`
+  String codexResetAt(Object time) {
+    return Intl.message(
+      'Reset $time',
+      name: 'codexResetAt',
+      desc: '',
+      args: [time],
+    );
+  }
+
+  /// `Last successful update: {time}`
+  String codexLastSuccessfulUpdate(Object time) {
+    return Intl.message(
+      'Last successful update: $time',
+      name: 'codexLastSuccessfulUpdate',
+      desc: '',
+      args: [time],
+    );
+  }
+
+  /// `Current account: not confirmed`
+  String get codexCurrentNotConfirmed {
+    return Intl.message(
+      'Current account: not confirmed',
+      name: 'codexCurrentNotConfirmed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{count} accounts loaded`
+  String codexAccountsLoaded(Object count) {
+    return Intl.message(
+      '$count accounts loaded',
+      name: 'codexAccountsLoaded',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `{count} previous account(s) missing from this snapshot`
+  String codexAccountsMissing(Object count) {
+    return Intl.message(
+      '$count previous account(s) missing from this snapshot',
+      name: 'codexAccountsMissing',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `No accounts in the snapshot`
+  String get codexNoAccounts {
+    return Intl.message(
+      'No accounts in the snapshot',
+      name: 'codexNoAccounts',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `No historical data available`
+  String get codexNoHistoricalData {
+    return Intl.message(
+      'No historical data available',
+      name: 'codexNoHistoricalData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Snapshot read failed; showing last successful data`
+  String get codexReadFailed {
+    return Intl.message(
+      'Snapshot read failed; showing last successful data',
+      name: 'codexReadFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Snapshot format is invalid`
+  String get codexInvalidSnapshot {
+    return Intl.message(
+      'Snapshot format is invalid',
+      name: 'codexInvalidSnapshot',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Codex snapshot is supported on Windows only`
+  String get codexUnsupportedPlatform {
+    return Intl.message(
+      'Codex snapshot is supported on Windows only',
+      name: 'codexUnsupportedPlatform',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Normal`
+  String get codexNormal {
+    return Intl.message('Normal', name: 'codexNormal', desc: '', args: []);
+  }
+
+  /// `Used up`
+  String get codexExhausted {
+    return Intl.message('Used up', name: 'codexExhausted', desc: '', args: []);
+  }
+
+  /// `Data expired`
+  String get codexExpired {
+    return Intl.message(
+      'Data expired',
+      name: 'codexExpired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Data anomaly / update needed`
+  String get codexDataAnomaly {
+    return Intl.message(
+      'Data anomaly / update needed',
+      name: 'codexDataAnomaly',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unavailable`
+  String get codexUnavailable {
+    return Intl.message(
+      'Unavailable',
+      name: 'codexUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Snapshot read: {time}`
+  String codexSnapshotReadAt(Object time) {
+    return Intl.message(
+      'Snapshot read: $time',
+      name: 'codexSnapshotReadAt',
+      desc: '',
+      args: [time],
+    );
+  }
+
   /// `Upload`
   String get upload {
     return Intl.message('Upload', name: 'upload', desc: '', args: []);

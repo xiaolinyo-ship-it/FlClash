@@ -144,7 +144,10 @@ class CodexSnapshotReadResult {
   final CodexAccountSnapshot? snapshot;
   final CodexSnapshotReadFailure? failure;
 
-  const CodexSnapshotReadResult({required this.snapshot, required this.failure});
+  const CodexSnapshotReadResult({
+    required this.snapshot,
+    required this.failure,
+  });
 }
 
 class CodexAccountSnapshotReader {
@@ -220,7 +223,8 @@ class CodexAccountSnapshotReader {
       throw const FileSystemException('APPDATA is unavailable');
     }
     final resolvedPath =
-        snapshotPath ?? path.join(appData!, 'CodexBar', 'codex-accounts', 'snapshots.json');
+        snapshotPath ??
+        path.join(appData!, 'CodexBar', 'codex-accounts', 'snapshots.json');
     return File(resolvedPath).readAsString();
   }
 }
