@@ -229,6 +229,34 @@ void main() {
     expect(windows[2592000]?.isConsistent, isTrue);
   });
 
+  test('maps the Codex app-server rate-limit response', () {
+    final windows = CodexAccountLiveReader.parseUsageWindows({
+      'rateLimits': {
+        'primary': {
+          'usedPercent': 18,
+          'windowDurationMins': 300,
+          'resetsAt': 1791898560,
+        },
+        'secondary': {
+          'usedPercent': 7,
+          'windowDurationMins': 10080,
+          'resetsAt': 1792503360,
+        },
+        'individualLimit': {
+          'limit': '1000',
+          'used': '240',
+          'remainingPercent': 76,
+          'resetsAt': 1794576960,
+        },
+      },
+    });
+
+    expect(windows[18000]?.usedPercent, 18);
+    expect(windows[604800]?.usedPercent, 7);
+    expect(windows[2592000]?.usedPercent, 24);
+    expect(windows[2592000]?.remainingPercent, 76);
+  });
+
   test('marks old successful data as expired', () {
     final snapshot = CodexAccountSnapshot.fromJson({
       'snapshots': {

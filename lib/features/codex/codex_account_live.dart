@@ -1,5 +1,6 @@
 // coverage:ignore-file
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -357,6 +358,28 @@ class CodexAccountLiveReader {
   }
 
   Future<Map<String, dynamic>?> _requestUsage(_CodexAuthRecord record) async {
+    // Prefer the official local Codex app-server rate-limit RPC. It exposes
+    // the optional monthly credit limit without adding a resident service or
+    // reading another credential store. The HTTP path below remains the
+    // compatibility fallback for older Codex installations.
+    if (!const bool.fromEnvironment('FLCLASH_CODEX_GUI_SMOKE')) {
+      final appServer = await _getAppServerUsage(record);
+      if (appServer != null) {
+        final windows = _extractWindows(appServer);
+        if (_windowFor(windows, 18000) != null &&
+            _windowFor(windows, 604800) != null) {
+          return appServer;
+        }
+        final http = await _requestHttpUsage(record);
+        return http == null ? appServer : _mergeUsagePayload(http, appServer);
+      }
+    }
+    return _requestHttpUsage(record);
+  }
+
+  Future<Map<String, dynamic>?> _requestHttpUsage(
+    _CodexAuthRecord record,
+  ) async {
     var current = record;
     var response = await _getUsage(current);
     if (_isUnauthorized(response) && current.refreshToken != null) {
@@ -373,6 +396,138 @@ class CodexAccountLiveReader {
       return null;
     }
     return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>?> _getAppServerUsage(
+    _CodexAuthRecord record,
+  ) async {
+    Process? process;
+    StreamSubscription<String>? outputSubscription;
+    Timer? timeout;
+    var initialized = false;
+    var completed = false;
+    final result = Completer<Map<String, dynamic>?>();
+
+    void complete(Map<String, dynamic>? value) {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      timeout?.cancel();
+      final subscription = outputSubscription;
+      if (subscription != null) {
+        unawaited(subscription.cancel());
+      }
+      if (!result.isCompleted) {
+        result.complete(value);
+      }
+    }
+
+    try {
+      process = await Process.start(
+        'codex',
+        const ['app-server', '--stdio'],
+        workingDirectory: record.home.path,
+        environment: {...Platform.environment, 'CODEX_HOME': record.home.path},
+        runInShell: false,
+      );
+      // Never surface app-server diagnostics in the dashboard or logs.
+      unawaited(process.stderr.drain<void>());
+      outputSubscription = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(
+            (line) {
+              if (completed || line.trim().isEmpty) {
+                return;
+              }
+              dynamic decoded;
+              try {
+                decoded = jsonDecode(line);
+              } on FormatException {
+                return;
+              }
+              if (decoded is! Map) {
+                return;
+              }
+              final id = decoded['id'];
+              if (id == 1 && !initialized) {
+                initialized = true;
+                process!.stdin.writeln(
+                  jsonEncode({'method': 'initialized', 'params': {}}),
+                );
+                process!.stdin.writeln(
+                  jsonEncode({'method': 'account/rateLimits/read', 'id': 7}),
+                );
+                unawaited(process!.stdin.flush());
+                return;
+              }
+              if (id != 7) {
+                return;
+              }
+              final response = decoded['result'];
+              if (response is Map && response['rateLimits'] is Map) {
+                complete(Map<String, dynamic>.from(response));
+              } else {
+                complete(null);
+              }
+            },
+            onError: (_) => complete(null),
+            cancelOnError: true,
+          );
+      process.exitCode.then<void>((_) => complete(null));
+      timeout = Timer(const Duration(seconds: 15), () => complete(null));
+      process.stdin.writeln(
+        jsonEncode({
+          'method': 'initialize',
+          'id': 1,
+          'params': {
+            'clientInfo': {
+              'name': 'flclash',
+              'title': 'FlClash',
+              'version': '1',
+            },
+            'capabilities': {'experimentalApi': true},
+          },
+        }),
+      );
+      await process.stdin.flush();
+      return await result.future;
+    } on ProcessException {
+      complete(null);
+      return null;
+    } on IOException {
+      complete(null);
+      return null;
+    } finally {
+      timeout?.cancel();
+      final subscription = outputSubscription;
+      if (subscription != null) {
+        await subscription.cancel();
+      }
+      final running = process;
+      if (running != null) {
+        running.kill();
+      }
+    }
+  }
+
+  static Map<String, dynamic> _mergeUsagePayload(
+    Map<String, dynamic> http,
+    Map<String, dynamic> appServer,
+  ) {
+    final merged = Map<String, dynamic>.from(http);
+    final rateLimits = appServer['rateLimits'];
+    if (rateLimits is Map) {
+      merged['appServerRateLimits'] = Map<String, dynamic>.from(rateLimits);
+    }
+    final byLimitId = appServer['rateLimitsByLimitId'];
+    if (byLimitId is Map) {
+      merged['appServerRateLimitsByLimitId'] = Map<String, dynamic>.from(
+        byLimitId,
+      );
+    }
+    return merged;
   }
 
   Future<Response<dynamic>?> _getUsage(_CodexAuthRecord record) async {
@@ -503,6 +658,25 @@ class CodexAccountLiveReader {
     final rateLimit = payload['rate_limit'] ?? payload['rateLimit'];
     addRateLimitObject(rateLimit);
 
+    final protocolRateLimits = payload['rateLimits'];
+    if (protocolRateLimits is Map) {
+      addRateLimitObject(protocolRateLimits);
+    }
+
+    final appServerRateLimits =
+        payload['appServerRateLimits'] ?? payload['app_server_rate_limits'];
+    if (appServerRateLimits is Map) {
+      addRateLimitObject(appServerRateLimits);
+    }
+
+    final byLimitId = payload['rateLimitsByLimitId'] ??
+        payload['appServerRateLimitsByLimitId'];
+    if (byLimitId is Map) {
+      for (final value in byLimitId.values) {
+        addRateLimitObject(value, overwrite: false);
+      }
+    }
+
     final rateLimits = payload['rate_limits'] ?? payload['rateLimits'];
     if (rateLimits is List) {
       for (final item in rateLimits) {
@@ -561,6 +735,7 @@ class CodexAccountLiveReader {
     final duration =
         _int(value['limit_window_seconds']) ??
         _int(value['limitWindowSeconds']) ??
+        _windowDurationSeconds(value) ??
         hintedDuration;
     if (used == null || duration == null) {
       return null;
@@ -573,22 +748,28 @@ class CodexAccountLiveReader {
     );
   }
 
+  static int? _windowDurationSeconds(Map<String, dynamic> value) {
+    final minutes =
+        _int(value['window_duration_mins']) ??
+        _int(value['windowDurationMins']);
+    return minutes == null ? null : minutes * 60;
+  }
+
   static CodexQuotaWindow? _parseMonthlyCreditLimit(
     Map<String, dynamic> payload,
   ) {
     dynamic individual;
     individual = payload['individual_limit'] ?? payload['individualLimit'];
-    if (individual == null) {
-      final spend = payload['spend_control'] ?? payload['spendControl'];
-      if (spend is Map) {
-        individual = spend['individual_limit'] ?? spend['individualLimit'];
+    for (final nested in [
+      payload['spend_control'] ?? payload['spendControl'],
+      payload['rate_limit'] ?? payload['rateLimit'],
+      payload['rateLimits'],
+      payload['appServerRateLimits'] ?? payload['app_server_rate_limits'],
+    ]) {
+      if (individual != null || nested is! Map) {
+        continue;
       }
-    }
-    if (individual == null) {
-      final rate = payload['rate_limit'] ?? payload['rateLimit'];
-      if (rate is Map) {
-        individual = rate['individual_limit'] ?? rate['individualLimit'];
-      }
+      individual = nested['individual_limit'] ?? nested['individualLimit'];
     }
     if (individual is! Map) {
       return null;
