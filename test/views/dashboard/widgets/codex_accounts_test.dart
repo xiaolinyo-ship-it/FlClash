@@ -12,6 +12,11 @@ const _fixturePath = 'test/fixtures/codex/snapshots_three_accounts.json';
 
 Future<String> _fixture() => File(_fixturePath).readAsString();
 
+Future<void> _pumpLoaded(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 CodexAccountSnapshotReader _reader({Future<String> Function()? readText}) {
   return CodexAccountSnapshotReader(
     readText: readText ?? _fixture,
@@ -38,7 +43,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpLoaded(tester);
 
     expect(find.text(AppLocalizations.current.codexAccounts), findsOneWidget);
     expect(find.text('al***@example.invalid'), findsOneWidget);
@@ -86,11 +91,11 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpLoaded(tester);
     expect(reads, 1);
 
     await tester.tap(find.byIcon(Icons.refresh));
-    await tester.pumpAndSettle();
+    await _pumpLoaded(tester);
 
     expect(reads, 2);
     expect(find.text('al***@example.invalid'), findsOneWidget);
