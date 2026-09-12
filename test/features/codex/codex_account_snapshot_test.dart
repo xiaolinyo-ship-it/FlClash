@@ -210,6 +210,31 @@ void main() {
     expect(windows[2592000]?.remainingPercent, 78);
   });
 
+  test('maps the official individual monthly credit limit', () {
+    final windows = CodexAccountLiveReader.parseUsageWindows({
+      'rate_limit': {
+        'primary_window': {
+          'used_percent': 15,
+          'limit_window_seconds': 18000,
+        },
+        'secondary_window': {
+          'used_percent': 5,
+          'limit_window_seconds': 604800,
+        },
+      },
+      'individualLimit': {
+        'limit': 100,
+        'used': 22,
+        'remainingPercent': 78,
+        'resetsAt': 1791898560,
+      },
+    });
+
+    expect(windows[2592000]?.usedPercent, 22);
+    expect(windows[2592000]?.remainingPercent, 78);
+    expect(windows[2592000]?.isConsistent, isTrue);
+  });
+
   test('marks old successful data as expired', () {
     final snapshot = CodexAccountSnapshot.fromJson({
       'snapshots': {

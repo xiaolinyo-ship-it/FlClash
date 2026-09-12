@@ -29,6 +29,7 @@ class _CodexAccountsState extends State<CodexAccounts> {
   CodexAccountSnapshot? _snapshot;
   CodexSnapshotReadFailure? _failure;
   Set<String> _missingAccountIds = {};
+  int _missingAccountCount = 0;
   bool _loading = false;
   Timer? _autoRefreshTimer;
 
@@ -66,16 +67,21 @@ class _CodexAccountsState extends State<CodexAccounts> {
         missing.addAll(previousIds.difference(nextIds));
       }
       missing.removeWhere(nextIds.contains);
+      final missingCount = result.missingAccountCount > missing.length
+          ? result.missingAccountCount
+          : missing.length;
       setState(() {
         _snapshot = nextSnapshot;
         _failure = result.failure;
         _missingAccountIds = missing;
+        _missingAccountCount = missingCount;
         _loading = false;
       });
       return;
     }
     setState(() {
       _failure = result.failure ?? CodexSnapshotReadFailure.unknown;
+      _missingAccountCount = 0;
       _loading = false;
     });
   }
@@ -125,18 +131,11 @@ class _CodexAccountsState extends State<CodexAccounts> {
                     isError: true,
                   ),
                 if (snapshot != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _sourceText(snapshot.source),
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (_missingAccountIds.isNotEmpty) ...[
+                  if (_missingAccountCount > 0) ...[
                     const SizedBox(height: 8),
                     _CodexMessage(
                       message: appLocalizations.codexAccountsMissing(
-                        _missingAccountIds.length,
+                        _missingAccountCount,
                       ),
                       isError: true,
                     ),
@@ -421,14 +420,6 @@ String _failureText(
     CodexSnapshotReadFailure.unsupportedPlatform =>
       localizations.codexUnsupportedPlatform,
     CodexSnapshotReadFailure.unknown => localizations.codexReadFailed,
-  };
-}
-
-String _sourceText(CodexSnapshotSource source) {
-  return switch (source) {
-    CodexSnapshotSource.live => 'FlClash 实时读取（独立于 CodexBar）',
-    CodexSnapshotSource.codexBarSnapshot => 'CodexBar 快照回退',
-    CodexSnapshotSource.cache => 'FlClash 本地缓存回退',
   };
 }
 

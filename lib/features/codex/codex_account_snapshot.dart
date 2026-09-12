@@ -230,12 +230,14 @@ class CodexSnapshotReadResult {
   final CodexAccountSnapshot? snapshot;
   final CodexSnapshotReadFailure? failure;
   final bool fromCache;
+  final int missingAccountCount;
   final CodexSnapshotSource source;
 
   const CodexSnapshotReadResult({
     required this.snapshot,
     required this.failure,
     this.fromCache = false,
+    this.missingAccountCount = 0,
     this.source = CodexSnapshotSource.codexBarSnapshot,
   });
 }
@@ -345,6 +347,7 @@ class CodexAccountSnapshotReader {
       snapshot: cached,
       failure: liveResult.failure,
       fromCache: true,
+      missingAccountCount: liveResult.missingAccountCount,
     );
   }
 

@@ -78,12 +78,6 @@ class CodexAccountLiveReader {
       }
     }
     records.addAll(byIdentity.values);
-    if (registeredHomes != null && records.length < registeredHomes.length) {
-      return const CodexSnapshotReadResult(
-        snapshot: null,
-        failure: CodexSnapshotReadFailure.fileUnavailable,
-      );
-    }
     if (registeredHomes == null) {
       final allowlist = await _readSnapshotAllowlist();
       if (allowlist.isNotEmpty) {
@@ -112,19 +106,29 @@ class CodexAccountLiveReader {
     }
 
     final accounts = <CodexAccountCardData>[];
+    var unavailableCount = 0;
     for (final record in records) {
       final account = await _readAccount(record);
       if (account == null) {
-        return const CodexSnapshotReadResult(
-          snapshot: null,
-          failure: CodexSnapshotReadFailure.unknown,
-        );
+        unavailableCount++;
+        continue;
       }
       accounts.add(account);
     }
+    if (accounts.isEmpty) {
+      return const CodexSnapshotReadResult(
+        snapshot: null,
+        failure: CodexSnapshotReadFailure.unknown,
+      );
+    }
 
     final current = accounts.where((account) => account.isCurrent).toList();
-    await _writeRegistry(records);
+    final registeredMissingCount = registeredHomes == null
+        ? 0
+        : (registeredHomes.length - records.length).clamp(0, 999).toInt();
+    if (registeredMissingCount == 0 && unavailableCount == 0) {
+      await _writeRegistry(records);
+    }
     return CodexSnapshotReadResult(
       snapshot: CodexAccountSnapshot(
         accounts: accounts,
@@ -133,6 +137,7 @@ class CodexAccountLiveReader {
         currentConfirmed: current.length == 1,
       ),
       failure: null,
+      missingAccountCount: registeredMissingCount + unavailableCount,
       source: CodexSnapshotSource.live,
     );
   }
@@ -521,6 +526,14 @@ class CodexAccountLiveReader {
         }
       }
     }
+
+    // The Codex API may expose the effective monthly credit limit as
+    // `individualLimit` instead of a 30-day rate-limit window. This is a
+    // subscription credit quota, not local cost estimation or a cash balance.
+    final monthlyCredit = _parseMonthlyCreditLimit(payload);
+    if (monthlyCredit != null && !windows.containsKey(2592000)) {
+      windows[2592000] = monthlyCredit;
+    }
     return windows;
   }
 
@@ -557,6 +570,52 @@ class CodexAccountLiveReader {
       usedPercent: used.clamp(0, 100).toDouble(),
       remainingPercent: (100 - used).clamp(0, 100).toDouble(),
       resetAt: _date(value['reset_at'] ?? value['resetAt']),
+    );
+  }
+
+  static CodexQuotaWindow? _parseMonthlyCreditLimit(
+    Map<String, dynamic> payload,
+  ) {
+    dynamic individual;
+    individual = payload['individual_limit'] ?? payload['individualLimit'];
+    if (individual == null) {
+      final spend = payload['spend_control'] ?? payload['spendControl'];
+      if (spend is Map) {
+        individual = spend['individual_limit'] ?? spend['individualLimit'];
+      }
+    }
+    if (individual == null) {
+      final rate = payload['rate_limit'] ?? payload['rateLimit'];
+      if (rate is Map) {
+        individual = rate['individual_limit'] ?? rate['individualLimit'];
+      }
+    }
+    if (individual is! Map) {
+      return null;
+    }
+
+    final limit = _number(individual['limit']);
+    final used = _number(individual['used']);
+    final storedRemaining = _number(
+      individual['remaining_percent'] ??
+          individual['remainingPercent'] ??
+          individual['percent_remaining'] ??
+          individual['percentRemaining'],
+    );
+    final usedPercent = used != null && limit != null && limit > 0
+        ? (used / limit * 100).clamp(0, 100).toDouble()
+        : storedRemaining == null
+        ? null
+        : (100 - storedRemaining).clamp(0, 100).toDouble();
+    if (usedPercent == null) {
+      return null;
+    }
+    return CodexQuotaWindow(
+      limitWindowSeconds: 2592000,
+      usedPercent: usedPercent,
+      remainingPercent:
+          storedRemaining ?? (100 - usedPercent).clamp(0, 100).toDouble(),
+      resetAt: _date(individual['resets_at'] ?? individual['resetsAt']),
     );
   }
 
