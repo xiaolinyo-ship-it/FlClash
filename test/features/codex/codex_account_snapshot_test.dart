@@ -156,6 +156,36 @@ void main() {
     expect(arrayWindows[2592000]?.remainingPercent, 70);
   });
 
+  test('maps a monthly window nested in additional rate limits', () {
+    final windows = CodexAccountLiveReader.parseUsageWindows({
+      'rate_limit': {
+        'primary_window': {
+          'used_percent': 15,
+          'limit_window_seconds': 18000,
+        },
+        'secondary_window': {
+          'used_percent': 5,
+          'limit_window_seconds': 604800,
+        },
+      },
+      'additional_rate_limits': [
+        {
+          'limit_name': 'Monthly quota',
+          'rate_limit': {
+            'primary_window': {
+              'used_percent': '22',
+              'limit_window_seconds': 2592000,
+            },
+          },
+        },
+      ],
+    });
+
+    expect(windows[18000]?.usedPercent, 15);
+    expect(windows[604800]?.usedPercent, 5);
+    expect(windows[2592000]?.remainingPercent, 78);
+  });
+
   test('marks old successful data as expired', () {
     final snapshot = CodexAccountSnapshot.fromJson({
       'snapshots': {

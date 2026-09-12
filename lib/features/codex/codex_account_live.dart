@@ -466,33 +466,59 @@ class CodexAccountLiveReader {
     Map<String, dynamic> payload,
   ) {
     final windows = <int, CodexQuotaWindow>{};
-    void addWindow(dynamic value, int? hint) {
+    void addWindow(dynamic value, int? hint, {bool overwrite = true}) {
       if (value is Map) {
         final window = _parseLiveWindow(Map<String, dynamic>.from(value), hint);
         if (window != null && window.limitWindowSeconds != null) {
-          windows[window.limitWindowSeconds!] = window;
+          final duration = window.limitWindowSeconds!;
+          if (overwrite || !windows.containsKey(duration)) {
+            windows[duration] = window;
+          }
+        }
+      }
+    }
+
+    void addRateLimitObject(dynamic value, {bool overwrite = true}) {
+      if (value is! Map) {
+        return;
+      }
+      final rate = Map<String, dynamic>.from(value);
+      for (final entry in rate.entries) {
+        final key = entry.key.toString().toLowerCase();
+        if (entry.value is List) {
+          for (final item in entry.value as List) {
+            addWindow(item, _durationHint(key), overwrite: overwrite);
+          }
+        } else {
+          addWindow(entry.value, _durationHint(key), overwrite: overwrite);
         }
       }
     }
 
     final rateLimit = payload['rate_limit'] ?? payload['rateLimit'];
-    if (rateLimit is Map) {
-      final rate = Map<String, dynamic>.from(rateLimit);
-      for (final entry in rate.entries) {
-        final key = entry.key.toString().toLowerCase();
-        if (entry.value is List) {
-          for (final item in entry.value as List) {
-            addWindow(item, _durationHint(key));
-          }
-        } else {
-          addWindow(entry.value, _durationHint(key));
-        }
-      }
-    }
+    addRateLimitObject(rateLimit);
+
     final rateLimits = payload['rate_limits'] ?? payload['rateLimits'];
     if (rateLimits is List) {
       for (final item in rateLimits) {
-        addWindow(item, null);
+        addWindow(item, null, overwrite: false);
+      }
+    }
+
+    // CodexBar also exposes feature-scoped windows here (for example Codex
+    // Spark). Keep this parser future-proof for a monthly window nested under
+    // one of these entries without allowing an auxiliary 5h/week window to
+    // replace the account's primary window.
+    final additional =
+        payload['additional_rate_limits'] ?? payload['additionalRateLimits'];
+    if (additional is List) {
+      for (final item in additional) {
+        if (item is Map) {
+          addRateLimitObject(
+            item['rate_limit'] ?? item['rateLimit'] ?? item,
+            overwrite: false,
+          );
+        }
       }
     }
     return windows;
