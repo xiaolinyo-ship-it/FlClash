@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:path/path.dart' as path;
 
 import 'codex_account_snapshot.dart';
@@ -25,8 +26,24 @@ class CodexAccountLiveReader {
     this.ambientHomePath,
     this.registryPath,
     DateTime Function()? clock,
-  }) : _client = client ?? Dio(),
+  }) : _client = client ?? _defaultClient(),
        _clock = clock ?? DateTime.now;
+
+  static Dio _defaultClient() {
+    final dio = Dio();
+    final proxy = _localProxyUri();
+    if (proxy == null || proxy.host.isEmpty || proxy.port <= 0) {
+      return dio;
+    }
+    dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        client.findProxy = (_) => 'PROXY ${proxy.host}:${proxy.port}';
+        return client;
+      },
+    );
+    return dio;
+  }
 
   Future<CodexSnapshotReadResult> read() async {
     if (!Platform.isWindows && supportPath == null && ambientHomePath == null) {
@@ -644,6 +661,25 @@ double? _number(dynamic value) {
 }
 
 int? _int(dynamic value) => value is num ? value.toInt() : null;
+
+Uri? _localProxyUri() {
+  for (final name in [
+    'HTTPS_PROXY',
+    'https_proxy',
+    'HTTP_PROXY',
+    'http_proxy',
+  ]) {
+    final raw = Platform.environment[name]?.trim();
+    if (raw == null || raw.isEmpty) {
+      continue;
+    }
+    final uri = Uri.tryParse(raw);
+    if (uri != null && uri.host.isNotEmpty && uri.port > 0) {
+      return uri;
+    }
+  }
+  return null;
+}
 
 DateTime? _date(dynamic value) {
   if (value is num && value.isFinite) {
