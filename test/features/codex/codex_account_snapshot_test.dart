@@ -76,7 +76,7 @@ void main() {
     expect(snapshot.accounts.first.displayName, 'al***@example.com');
   });
 
-  test('normalizes legacy remaining percentage using the CLI meaning', () {
+  test('flags contradictory legacy used and remaining percentages', () {
     final snapshot = CodexAccountSnapshot.fromJson({
       'snapshots': {
         'account': _account(
@@ -88,13 +88,39 @@ void main() {
     }, readAt: DateTime(2026, 9, 12, 12));
 
     final account = snapshot.accounts.single;
-    expect(account.hasDataAnomaly, isFalse);
+    expect(account.hasDataAnomaly, isTrue);
     expect(
       account.statusAt(DateTime(2026, 9, 12, 12)),
-      CodexAccountStatus.exhausted,
+      CodexAccountStatus.dataAnomaly,
     );
     expect(account.weekly?.usedPercent, 100);
-    expect(account.weekly?.remainingPercent, 0);
+    expect(account.weekly?.remainingPercent, 23);
+  });
+
+  test('derives remaining percentage only when the snapshot omits it', () {
+    final snapshot = CodexAccountSnapshot.fromJson({
+      'snapshots': {
+        'account': {
+          'email': 'account@example.com',
+          'primaryWindow': {
+            'limitWindowSeconds': 18000,
+            'usedPercent': 40,
+            'resetAt': '2026-09-12T12:00:00.000Z',
+          },
+          'secondaryWindow': {
+            'limitWindowSeconds': 604800,
+            'usedPercent': 25,
+            'resetAt': '2026-09-19T12:00:00.000Z',
+          },
+          'updatedAt': '2026-09-12T11:30:00.000Z',
+        },
+      },
+    }, readAt: DateTime(2026, 9, 12, 12));
+
+    final account = snapshot.accounts.single;
+    expect(account.hasDataAnomaly, isFalse);
+    expect(account.fiveHour?.remainingPercent, 60);
+    expect(account.weekly?.remainingPercent, 75);
   });
 
   test('keeps five-hour exhaustion independent from weekly quota', () {

@@ -429,13 +429,13 @@ CodexQuotaWindow? _parseWindow(dynamic value) {
   return CodexQuotaWindow(
     limitWindowSeconds: _readInt(window['limitWindowSeconds']),
     usedPercent: usedPercent,
-    // Codex CLI treats remaining quota as the complement of used quota. Older
-    // CodexBar snapshots may retain a stale independently-written value
-    // (for example 100 used / 84 remaining); use the CLI meaning when the
-    // authoritative used percentage is available.
-    remainingPercent: usedPercent == null
-        ? storedRemainingPercent
-        : (100 - usedPercent).clamp(0, 100).toDouble(),
+    // If both values are present, preserve them so CodexQuotaWindow can flag
+    // contradictory legacy snapshots (for example 100 used / 23 remaining).
+    // Only synthesize the complement when the producer omitted remainingPercent.
+    remainingPercent: storedRemainingPercent ??
+        (usedPercent == null
+            ? null
+            : (100 - usedPercent).clamp(0, 100).toDouble()),
     resetAt: _readDateTime(window['resetAt']),
   );
 }
