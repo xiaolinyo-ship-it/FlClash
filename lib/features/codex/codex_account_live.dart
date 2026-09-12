@@ -414,10 +414,6 @@ class CodexAccountLiveReader {
       }
       completed = true;
       timeout?.cancel();
-      final subscription = outputSubscription;
-      if (subscription != null) {
-        unawaited(subscription.cancel());
-      }
       if (!result.isCompleted) {
         result.complete(value);
       }
@@ -453,13 +449,13 @@ class CodexAccountLiveReader {
               final id = decoded['id'];
               if (id == 1 && !initialized) {
                 initialized = true;
-                process!.stdin.writeln(
+                process.stdin.writeln(
                   jsonEncode({'method': 'initialized', 'params': {}}),
                 );
-                process!.stdin.writeln(
+                process.stdin.writeln(
                   jsonEncode({'method': 'account/rateLimits/read', 'id': 7}),
                 );
-                unawaited(process!.stdin.flush());
+                unawaited(process.stdin.flush());
                 return;
               }
               if (id != 7) {
@@ -475,7 +471,7 @@ class CodexAccountLiveReader {
             onError: (_) => complete(null),
             cancelOnError: true,
           );
-      process.exitCode.then<void>((_) => complete(null));
+      unawaited(process.exitCode.then<void>((_) => complete(null)));
       timeout = Timer(const Duration(seconds: 15), () => complete(null));
       process.stdin.writeln(
         jsonEncode({
