@@ -84,7 +84,7 @@ class _CodexAccountsState extends State<CodexAccounts> {
         mainAxisSize: MainAxisSize.min,
         children: [
           InfoHeader(
-            padding: baseInfoEdgeInsets.copyWith(bottom: 0),
+            padding: baseInfoEdgeInsets.copyWith(bottom: 8.mAp),
             info: Info(
               iconData: Icons.account_circle_outlined,
               label: appLocalizations.codexAccounts,
