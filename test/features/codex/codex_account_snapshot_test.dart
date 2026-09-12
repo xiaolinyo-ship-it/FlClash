@@ -48,7 +48,11 @@ void main() {
     expect(snapshot.accounts[0].weekly?.remainingPercent, 60);
     expect(snapshot.accounts[1].fiveHour?.isExhausted, isTrue);
     expect(snapshot.accounts[1].weekly?.isExhausted, isFalse);
-    expect(snapshot.accounts[2].hasDataAnomaly, isFalse);
+    expect(snapshot.accounts[2].hasDataAnomaly, isTrue);
+    expect(
+      snapshot.accounts[2].statusAt(DateTime(2026, 9, 12, 17)),
+      CodexAccountStatus.dataAnomaly,
+    );
   });
 
   test('sorts accounts by stable id and maps windows by duration', () {
