@@ -113,7 +113,7 @@ jobs:
             'FlClash.exe',
             'FlClashCore.exe',
             'FlClashHelperService.exe',
-            'data/flutter_assets/AssetManifest.bin.json'
+            'data/flutter_assets/AssetManifest.bin'
           )
           foreach ($relative in $required) {
             $path = Join-Path $root $relative
