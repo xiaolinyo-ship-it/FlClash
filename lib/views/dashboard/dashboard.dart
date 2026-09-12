@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'widget_registry.dart';
+import 'widgets/codex_accounts.dart';
 import 'widgets/core_status_button.dart';
 import 'widgets/start_button.dart';
 
@@ -225,34 +226,44 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: _maxGridWidth),
-                  child: LayoutBuilder(
-                    builder: (_, constraints) {
-                      final columns = switch (constraints.maxWidth) {
-                        < _mediumGridBreakpoint => _compactCrossAxisCount,
-                        <= _maxGridBreakpoint => _mediumCrossAxisCount,
-                        _ => _maxCrossAxisCount,
-                      };
-                      return isEdit
-                          ? BackLayerScope(
-                              onBack: _handleExitEdit,
-                              child: SuperGrid(
-                                key: key,
-                                crossAxisCount: columns,
-                                crossAxisSpacing: spacing,
-                                mainAxisSpacing: spacing,
-                                children: children,
-                                onUpdate: () {
-                                  _handleSave();
-                                },
-                              ),
-                            )
-                          : Grid(
-                              crossAxisCount: columns,
-                              crossAxisSpacing: spacing,
-                              mainAxisSpacing: spacing,
-                              children: children,
-                            );
-                    },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      LayoutBuilder(
+                        builder: (_, constraints) {
+                          final columns = switch (constraints.maxWidth) {
+                            < _mediumGridBreakpoint => _compactCrossAxisCount,
+                            <= _maxGridBreakpoint => _mediumCrossAxisCount,
+                            _ => _maxCrossAxisCount,
+                          };
+                          return isEdit
+                              ? BackLayerScope(
+                                  onBack: _handleExitEdit,
+                                  child: SuperGrid(
+                                    key: key,
+                                    crossAxisCount: columns,
+                                    crossAxisSpacing: spacing,
+                                    mainAxisSpacing: spacing,
+                                    children: children,
+                                    onUpdate: () {
+                                      _handleSave();
+                                    },
+                                  ),
+                                )
+                              : Grid(
+                                  crossAxisCount: columns,
+                                  crossAxisSpacing: spacing,
+                                  mainAxisSpacing: spacing,
+                                  children: children,
+                                );
+                        },
+                      ),
+                      if (!isEdit && system.isWindows) ...[
+                        SizedBox(height: spacing),
+                        const CodexAccounts(),
+                      ],
+                    ],
                   ),
                 ),
               ),

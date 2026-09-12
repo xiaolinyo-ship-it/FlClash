@@ -1,0 +1,98 @@
+name: Codex dashboard latest-source validation
+
+on:
+  push:
+    branches:
+      - codex/flclash-codex-dashboard-latest
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.44.4'
+
+jobs:
+  test:
+    name: Flutter tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate localization
+        run: dart run intl_utils:generate
+
+      - name: Format changed Dart sources
+        run: dart format lib/features/codex lib/views/dashboard/dashboard.dart lib/views/dashboard/widgets/codex_accounts.dart lib/views/dashboard/widgets/widgets.dart test/features/codex
+
+      - name: Upload generated sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-latest-generated
+          path: |
+            lib/l10n
+            lib/features/codex
+            lib/views/dashboard/dashboard.dart
+            lib/views/dashboard/widgets/codex_accounts.dart
+            lib/views/dashboard/widgets/widgets.dart
+            test/features/codex
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Skip native build hooks
+        run: |
+          yq -i '.hooks.user_defines.setup.build_assets = false | .hooks.user_defines.rust_api.build_assets = false' pubspec.yaml
+
+      - name: Run Codex snapshot tests
+        run: flutter test --reporter expanded test/features/codex/codex_account_snapshot_test.dart
+
+  windows-build:
+    name: Windows debug build
+    runs-on: windows-2022
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Enable git long paths
+        run: git config --global core.longpaths true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Build Windows debug application
+        run: |
+          flutter pub get
+          flutter build windows --debug
+
+      - name: Upload debug build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-latest-windows-debug
+          path: build/windows/x64/runner/Debug
