@@ -168,7 +168,7 @@ class Bootstrap {
     if (!_codexGuiSmokeMode) {
       await _container.read(coreActionProvider.notifier).startCore();
     }
-    if (!_bootDecision.isDegraded) {
+    if (!_codexGuiSmokeMode && !_bootDecision.isDegraded) {
       await _container.read(setupActionProvider.notifier).initStatus();
     }
     _container.read(initProvider.notifier).value = true;
