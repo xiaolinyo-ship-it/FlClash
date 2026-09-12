@@ -271,6 +271,7 @@ class _CodexAccountCard extends StatelessWidget {
             label: '月额度',
             window: account.monthly,
             localizations: localizations,
+            optional: true,
           ),
           const SizedBox(height: 12),
           Text(
@@ -291,11 +292,13 @@ class _CodexQuotaRow extends StatelessWidget {
   final String label;
   final CodexQuotaWindow? window;
   final AppLocalizations localizations;
+  final bool optional;
 
   const _CodexQuotaRow({
     required this.label,
     required this.window,
     required this.localizations,
+    this.optional = false,
   });
 
   @override
@@ -318,9 +321,13 @@ class _CodexQuotaRow extends StatelessWidget {
                       _formatPercent(used),
                       _formatPercent(remaining),
                     )
+                  : optional && currentWindow == null
+                  ? localizations.codexUnavailable
                   : localizations.codexDataAnomaly,
               style: context.textTheme.bodySmall?.copyWith(
-                color: valid ? colorScheme.onSurfaceVariant : colorScheme.error,
+                color: valid || (optional && currentWindow == null)
+                    ? colorScheme.onSurfaceVariant
+                    : colorScheme.error,
               ),
             ),
           ],
@@ -341,7 +348,9 @@ class _CodexQuotaRow extends StatelessWidget {
                 ? localizations.codexUnavailable
                 : localizations.codexDataAnomaly,
             style: context.textTheme.bodySmall?.copyWith(
-              color: colorScheme.error,
+              color: optional && currentWindow == null
+                  ? colorScheme.onSurfaceVariant
+                  : colorScheme.error,
             ),
           ),
         const SizedBox(height: 4),
