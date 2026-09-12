@@ -122,6 +122,15 @@ jobs:
             }
           }
 
+      - name: Build Windows GUI smoke application (界面测试构建)
+        run: flutter build windows --debug --dart-define=FLCLASH_CODEX_GUI_SMOKE=true
+
+      - name: Upload GUI smoke build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-latest-windows-gui-smoke
+          path: build/windows/x64/runner/Debug
+
       - name: Run Windows GUI smoke test (界面冒烟测试)
         shell: pwsh
         run: |

@@ -23,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_color_utilities/palettes/tonal_palette.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+const _codexGuiSmokeMode = bool.fromEnvironment('FLCLASH_CODEX_GUI_SMOKE');
+
 class Bootstrap {
   static Bootstrap? _instance;
 
@@ -163,7 +165,9 @@ class Bootstrap {
     await _handlerDisclaimer();
     await _showCrashRecoveryTip();
     await _showCrashlyticsTip();
-    await _container.read(coreActionProvider.notifier).startCore();
+    if (!_codexGuiSmokeMode) {
+      await _container.read(coreActionProvider.notifier).startCore();
+    }
     if (!_bootDecision.isDegraded) {
       await _container.read(setupActionProvider.notifier).initStatus();
     }
