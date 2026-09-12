@@ -694,11 +694,23 @@ String? _string(dynamic value) {
 }
 
 double? _number(dynamic value) {
-  final number = value is num ? value.toDouble() : null;
+  final number = value is num
+      ? value.toDouble()
+      : value is String
+      ? double.tryParse(value.trim())
+      : null;
   return number != null && number.isFinite ? number : null;
 }
 
-int? _int(dynamic value) => value is num ? value.toInt() : null;
+int? _int(dynamic value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value.trim());
+  }
+  return null;
+}
 
 Uri? _localProxyUri() {
   for (final name in [
