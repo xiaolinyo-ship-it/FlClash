@@ -32,9 +32,26 @@ class AppPath {
 
   AppPath._internal() {
     appDirPath = join(dirname(Platform.resolvedExecutable));
-    supportDirectory().then((value) {
-      dataDir.complete(value);
-    });
+    final smokeDataDir = const bool.fromEnvironment(
+          'FLCLASH_CODEX_GUI_SMOKE',
+        )
+        ? Platform.environment['FLCLASH_CODEX_GUI_SMOKE_DATA_DIR']
+        : null;
+    if (smokeDataDir != null && smokeDataDir.isNotEmpty) {
+      final directory = Directory(smokeDataDir);
+      unawaited(
+        directory.create(recursive: true).then<void>(
+          (_) => dataDir.complete(directory),
+          onError: (Object error, StackTrace stackTrace) {
+            dataDir.completeError(error, stackTrace);
+          },
+        ),
+      );
+    } else {
+      supportDirectory().then((value) {
+        dataDir.complete(value);
+      });
+    }
     temporaryDirectory().then((value) {
       tempDir.complete(value);
     });
