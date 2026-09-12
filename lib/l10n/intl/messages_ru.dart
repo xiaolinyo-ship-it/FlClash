@@ -300,7 +300,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "codexAccounts": MessageLookupByLibrary.simpleMessage("Аккаунты Codex"),
     "codexAccountsHint": MessageLookupByLibrary.simpleMessage(
-      "Только чтение снимка CodexBar; обновление перечитывает только файл",
+      "FlClash читает лимиты Codex напрямую и при ошибке использует снимок или локальный кэш",
     ),
     "codexAccountsLoaded": m0,
     "codexAccountsMissing": m1,
@@ -615,10 +615,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Введите содержимое правила",
     ),
-    "installedAppsPermissionDeniedMessage":
-        MessageLookupByLibrary.simpleMessage(
-          "Разрешение на список приложений отклонено, поэтому установленные приложения недоступны. Предоставьте его вручную в системных настройках.",
-        ),
+    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
+      "Разрешение на список приложений отклонено, поэтому установленные приложения недоступны. Предоставьте его вручную в системных настройках.",
+    ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "Эта система не выдаёт список установленных приложений без разрешения. Предоставьте его, чтобы настроить прокси для отдельных приложений.",
     ),

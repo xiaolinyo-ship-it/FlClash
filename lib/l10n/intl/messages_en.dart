@@ -292,7 +292,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "codexAccounts": MessageLookupByLibrary.simpleMessage("Codex accounts"),
     "codexAccountsHint": MessageLookupByLibrary.simpleMessage(
-      "Read-only CodexBar snapshot; refresh rereads the file only",
+      "FlClash reads Codex quota directly; falls back to snapshot or local cache on failure",
     ),
     "codexAccountsLoaded": m0,
     "codexAccountsMissing": m1,
@@ -601,10 +601,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "inputRuleContent": MessageLookupByLibrary.simpleMessage(
       "Enter the rule content",
     ),
-    "installedAppsPermissionDeniedMessage":
-        MessageLookupByLibrary.simpleMessage(
-          "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
-        ),
+    "installedAppsPermissionDeniedMessage": MessageLookupByLibrary.simpleMessage(
+      "The app list permission was denied, so installed apps cannot be listed. Please grant it manually in system settings.",
+    ),
     "installedAppsPermissionDesc": MessageLookupByLibrary.simpleMessage(
       "This system hides the installed app list until the permission is granted. Authorize it to configure the per-app proxy.",
     ),

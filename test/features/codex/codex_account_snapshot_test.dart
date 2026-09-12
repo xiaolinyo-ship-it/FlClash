@@ -31,8 +31,9 @@ Map<String, dynamic> _account({
 
 void main() {
   test('parses the sanitized three-account fixture end to end', () async {
-    final raw = await File('test/fixtures/codex/snapshots_three_accounts.json')
-        .readAsString();
+    final raw = await File(
+      'test/fixtures/codex/snapshots_three_accounts.json',
+    ).readAsString();
     final snapshot = CodexAccountSnapshot.fromJson(
       Map<String, dynamic>.from(jsonDecode(raw) as Map),
       readAt: DateTime(2026, 9, 12, 17),
