@@ -420,16 +420,17 @@ class CodexAccountLiveReader {
     }
 
     try {
-      process = await Process.start(
+      final appServerProcess = await Process.start(
         'codex',
         const ['app-server', '--stdio'],
         workingDirectory: record.home.path,
         environment: {...Platform.environment, 'CODEX_HOME': record.home.path},
         runInShell: false,
       );
+      process = appServerProcess;
       // Never surface app-server diagnostics in the dashboard or logs.
-      unawaited(process.stderr.drain<void>());
-      outputSubscription = process.stdout
+      unawaited(appServerProcess.stderr.drain<void>());
+      outputSubscription = appServerProcess.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(
@@ -449,13 +450,13 @@ class CodexAccountLiveReader {
               final id = decoded['id'];
               if (id == 1 && !initialized) {
                 initialized = true;
-                process.stdin.writeln(
+                appServerProcess.stdin.writeln(
                   jsonEncode({'method': 'initialized', 'params': {}}),
                 );
-                process.stdin.writeln(
+                appServerProcess.stdin.writeln(
                   jsonEncode({'method': 'account/rateLimits/read', 'id': 7}),
                 );
-                unawaited(process.stdin.flush());
+                unawaited(appServerProcess.stdin.flush());
                 return;
               }
               if (id != 7) {
@@ -471,9 +472,9 @@ class CodexAccountLiveReader {
             onError: (_) => complete(null),
             cancelOnError: true,
           );
-      unawaited(process.exitCode.then<void>((_) => complete(null)));
+      unawaited(appServerProcess.exitCode.then<void>((_) => complete(null)));
       timeout = Timer(const Duration(seconds: 15), () => complete(null));
-      process.stdin.writeln(
+      appServerProcess.stdin.writeln(
         jsonEncode({
           'method': 'initialize',
           'id': 1,
@@ -487,7 +488,7 @@ class CodexAccountLiveReader {
           },
         }),
       );
-      await process.stdin.flush();
+      await appServerProcess.stdin.flush();
       return await result.future;
     } on ProcessException {
       complete(null);
