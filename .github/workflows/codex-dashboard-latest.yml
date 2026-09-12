@@ -94,9 +94,19 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Build Windows GUI smoke application (界面测试构建)
+      - name: Build normal Windows application (正式构建)
         run: |
           flutter pub get
+          flutter build windows --debug
+
+      - name: Upload normal Windows application (正式构建产物)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flclash-codex-dashboard-latest-windows-production-debug
+          path: build/windows/x64/runner/Debug
+
+      - name: Build Windows GUI smoke application (界面测试构建)
+        run: |
           flutter build windows --debug --dart-define=FLCLASH_CODEX_GUI_SMOKE=true
 
       - name: Upload GUI smoke build
