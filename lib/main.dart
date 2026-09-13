@@ -17,10 +17,12 @@ void main(List<String> args) {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // coverage:ignore-start
       if (isCodexTaskbarPanel(args)) {
         await CodexTaskbarPanelRuntime.run();
         return;
       }
+      // coverage:ignore-end
       if (Platform.isLinux) {
         linkManager.seedInitialLink(args);
       }

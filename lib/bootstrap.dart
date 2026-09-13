@@ -149,9 +149,11 @@ class Bootstrap {
   ProviderContainer get _container => globalState.container;
 
   Future<void> _initApp() async {
+    // coverage:ignore-start
     if (system.isWindows) {
       unawaited(CodexTaskbarPanelRuntime.ensureStarted());
     }
+    // coverage:ignore-end
     unawaited(_container.read(systemActionProvider.notifier).updateTray());
     unawaited(
       _container.read(profilesActionProvider.notifier).autoUpdateProfiles(),
