@@ -474,19 +474,11 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     }
     return RepaintBoundary(
       key: widget.captureKey,
-      child: MouseRegion(
-        onEnter: (_) => _setExpanded(true),
-        onExit: (_) {
-          if (!_dragging) {
-            _setExpanded(false);
-          }
-        },
-        child: Material(
-          color: Colors.transparent,
-          child: _expanded
-              ? _buildExpanded(context, snapshot)
-              : _buildCollapsed(context, current),
-        ),
+      child: Material(
+        color: Colors.transparent,
+        child: _expanded
+            ? _buildExpanded(context, snapshot)
+            : _buildCollapsed(context, current),
       ),
     );
   }
@@ -503,19 +495,23 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         : _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
     return Align(
       alignment: Alignment.center,
-      child: SizedBox(
-        width: _pillWidth,
-        height: _pillHeight,
-        child: _PanelSurface(
-          popup: false,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          onDrag: _startDragging,
-          child: _SummaryLine(
-            account: current,
-            fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
-            weekly: current?.hasDataAnomaly == true ? null : weekly,
-            reset: reset,
-            loading: _loading,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(_setExpanded(!_expanded)),
+        child: SizedBox(
+          width: _pillWidth,
+          height: _pillHeight,
+          child: _PanelSurface(
+            popup: false,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            onDrag: _startDragging,
+            child: _SummaryLine(
+              account: current,
+              fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
+              weekly: current?.hasDataAnomaly == true ? null : weekly,
+              reset: reset,
+              loading: _loading,
+            ),
           ),
         ),
       ),
