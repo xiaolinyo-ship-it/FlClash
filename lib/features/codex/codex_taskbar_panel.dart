@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
 import 'package:screen_retriever/screen_retriever.dart';
@@ -50,8 +51,8 @@ abstract final class CodexTaskbarPanelRuntime {
     final captureKey = preview ? GlobalKey() : null;
     final options = WindowOptions(
       size: Size(_panelWidth, initialHeight),
-      minimumSize: Size(_panelWidth, _collapsedHeight),
-      maximumSize: Size(_panelWidth, _expandedHeight),
+      minimumSize: const Size(_panelWidth, _collapsedHeight),
+      maximumSize: const Size(_panelWidth, _expandedHeight),
       center: false,
       backgroundColor: Colors.transparent,
       skipTaskbar: true,
@@ -83,11 +84,14 @@ abstract final class CodexTaskbarPanelRuntime {
 
   static Future<void> _capturePreview(GlobalKey key) async {
     final context = key.currentContext;
-    final renderObject = context?.findRenderObject();
+    if (context == null) {
+      return;
+    }
+    final renderObject = context.findRenderObject();
     if (renderObject is! RenderRepaintBoundary) {
       return;
     }
-    final pixelRatio = MediaQuery.maybeOf(context!)?.devicePixelRatio ?? 1;
+    final pixelRatio = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
     final image = await renderObject.toImage(pixelRatio: pixelRatio);
     try {
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
