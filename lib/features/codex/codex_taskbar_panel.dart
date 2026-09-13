@@ -16,10 +16,12 @@ const codexTaskbarPanelArgument = '--codex-panel';
 // These are logical pixels.  The reference CodexBar popup is 324 CSS pixels
 // wide; on a 200% Windows display that becomes the compact ~648px glass card
 // shown in the reference capture.
-const _collapsedWidth = 240.0;
+const _collapsedWidth = 196.0;
 const _expandedWidth = 324.0;
-const _collapsedHeight = 26.0;
-const _expandedHeight = 112.0;
+const _collapsedHeight = 24.0;
+const _popupHeight = 112.0;
+const _panelGap = 4.0;
+const _expandedHeight = _popupHeight + _panelGap + _collapsedHeight;
 const _screenInset = 12.0;
 const _positionFileName = 'codex-taskbar-panel-position.json';
 
@@ -400,12 +402,17 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   }
 
   Widget _buildCollapsed(BuildContext context, CodexAccountCardData? current) {
+    return _buildPill(current);
+  }
+
+  Widget _buildPill(CodexAccountCardData? current) {
     final fiveHour = current?.fiveHour?.remainingPercent;
     final weekly = current?.weekly?.remainingPercent;
     final reset = current?.hasDataAnomaly == true
         ? '--.--'
         : _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
-    return Center(
+    return Align(
+      alignment: Alignment.bottomCenter,
       child: SizedBox(
         width: _collapsedWidth,
         height: _collapsedHeight,
@@ -427,46 +434,69 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
 
   Widget _buildExpanded(BuildContext context, CodexAccountSnapshot? snapshot) {
     final accounts = snapshot?.accounts ?? const <CodexAccountCardData>[];
-    return _PanelSurface(
-      popup: true,
-      padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
-      onDrag: _startDragging,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (accounts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(7, 7, 7, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('暂无可显示的账户数据'),
-              ),
-            )
-          else
-            for (final account in accounts)
-              _AccountRow(
-                account: account,
-                currentConfirmed: snapshot?.currentConfirmed ?? false,
-                missing: _missingAccountIds.contains(account.id),
-              ),
-          if (_failure != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(7, 2, 7, 0),
-                child: Text(
-                  _failureText(_failure!),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xffffcf8a),
-                    fontSize: 8,
+    CodexAccountCardData? current;
+    if (snapshot != null && snapshot.currentConfirmed) {
+      current = snapshot.accounts
+          .where((account) => account.isCurrent)
+          .firstOrNull;
+    }
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          width: _expandedWidth,
+          height: _popupHeight,
+          child: _PanelSurface(
+            popup: true,
+            padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
+            onDrag: _startDragging,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (accounts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(7, 7, 7, 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('暂无可显示的账户数据'),
+                    ),
+                  )
+                else
+                  for (final account in accounts)
+                    _AccountRow(
+                      account: account,
+                      currentConfirmed: snapshot?.currentConfirmed ?? false,
+                      missing: _missingAccountIds.contains(account.id),
+                    ),
+                if (_failure != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(7, 2, 7, 0),
+                      child: Text(
+                        _failureText(_failure!),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xffffcf8a),
+                          fontSize: 8,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-        ],
-      ),
+          ),
+        ),
+        Positioned(
+          bottom: 0,
+          width: _collapsedWidth,
+          height: _collapsedHeight,
+          child: _buildPill(current),
+        ),
+      ],
     );
   }
 }
