@@ -15,9 +15,9 @@ import 'package:window_manager/window_manager.dart';
 const codexTaskbarPanelArgument = '--codex-panel';
 const codexTaskbarPanelPreviewArgument = '--codex-panel-preview';
 
-// These are logical pixels.  CodexBar uses a transparent 360x36 FloatBar
-// window and a 324x120 account popup.  The visible taskbar pill is narrower
-// than its native window and remains centered below the popup when expanded.
+// These are logical pixels. CodexBar uses a transparent 360x36 FloatBar
+// window and a 324x120 account popup. The native panel is parked inside the
+// taskbar strip; only its compact pill is painted in the lower 36 px.
 const _panelWidth = 360.0;
 const _popupWidth = 324.0;
 const _pillWidth = 196.0;
@@ -26,8 +26,9 @@ const _pillHeight = 20.0;
 const _popupHeight = 120.0;
 const _panelGap = 4.0;
 const _expandedHeight = _popupHeight + _panelGap + _collapsedHeight;
-const _screenInset = 12.0;
+const _screenInset = 8.0;
 const _positionFileName = 'codex-taskbar-panel-position.json';
+const _positionSchemaVersion = 2;
 
 bool isCodexTaskbarPanel(List<String> args) =>
     args.contains(codexTaskbarPanelArgument) ||
@@ -174,7 +175,11 @@ abstract final class CodexTaskbarPanelRuntime {
       final file = File(filePath);
       await file.parent.create(recursive: true);
       await file.writeAsString(
-        jsonEncode({'x': position.dx, 'y': position.dy}),
+        jsonEncode({
+          'version': _positionSchemaVersion,
+          'x': position.dx,
+          'y': position.dy,
+        }),
         flush: true,
       );
     } catch (error) {
@@ -234,6 +239,10 @@ abstract final class CodexTaskbarPanelRuntime {
       if (value is! Map) {
         return null;
       }
+      final version = (value['version'] as num?)?.toInt();
+      if (version != _positionSchemaVersion) {
+        return null;
+      }
       final x = (value['x'] as num?)?.toDouble();
       final y = (value['y'] as num?)?.toDouble();
       if (x == null || y == null || !x.isFinite || !y.isFinite) {
@@ -269,7 +278,9 @@ abstract final class CodexTaskbarPanelRuntime {
   }
 
   static Rect _workArea(Display display, Offset origin) {
-    final size = display.visibleSize ?? display.size;
+    // Use the full monitor bounds, not visibleSize. The old CodexBar taskbar
+    // style deliberately occupies the reserved Windows taskbar strip.
+    final size = display.size;
     return Rect.fromLTWH(origin.dx, origin.dy, size.width, size.height);
   }
 
@@ -638,14 +649,14 @@ class _PanelSurface extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: popup
                       ? const Color(0xF5171F2B)
-                      : const Color(0xBDD5E7F2),
+                      : const Color(0x14FFFFFF),
                   borderRadius: BorderRadius.all(
                     Radius.circular(popup ? 12 : 7),
                   ),
                   border: Border.all(
                     color: popup
                         ? const Color(0xADFFFFFF)
-                        : const Color(0x7AFFFFFF),
+                        : const Color(0x38FFFFFF),
                     width: 1.0,
                   ),
                 ),
@@ -680,37 +691,35 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = account?.displayName ?? 'Codex 账户未确认';
     return Row(
       children: [
         _StatusDot(
           current: account != null && account!.isCurrent,
-          color: const Color(0xff36556b),
+          color: const Color(0xadffffff),
         ),
         const SizedBox(width: 2),
         Expanded(
           child: Text.rich(
             TextSpan(
               style: const TextStyle(
-                color: Color(0xf0182a36),
+                color: Color(0xf2ffffff),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
               children: [
-                TextSpan(text: name),
-                const TextSpan(text: '  5h '),
+                const TextSpan(text: '5h '),
                 TextSpan(
                   text: _percent(fiveHour),
-                  style: const TextStyle(color: Color(0xff3f8f5b)),
+                  style: const TextStyle(color: Color(0xff9be8b5)),
                 ),
                 const TextSpan(text: ' | W '),
                 TextSpan(
                   text: _percent(weekly),
-                  style: const TextStyle(color: Color(0xff3f8f5b)),
+                  style: const TextStyle(color: Color(0xff9be8b5)),
                 ),
                 TextSpan(
                   text: ' | $reset',
-                  style: const TextStyle(color: Color(0xff40505a)),
+                  style: const TextStyle(color: Color(0xb8ffffff)),
                 ),
               ],
             ),

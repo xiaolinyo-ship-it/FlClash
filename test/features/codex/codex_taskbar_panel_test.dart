@@ -17,15 +17,15 @@ void main() {
     expect(isCodexTaskbarPanel(const []), isFalse);
   });
 
-  test('centers the collapsed pill above the work-area taskbar', () {
+  test('centers the collapsed pill inside the monitor taskbar strip', () {
     final position = codexTaskbarPanelPosition(
       workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
       panelSize: const Size(360, 36),
       height: 36,
-      inset: 12,
+      inset: 8,
     );
 
-    expect(position, const Offset(780, 1032));
+    expect(position, const Offset(780, 1036));
   });
 
   test('centers the expanded popup and persistent pill as one group', () {
@@ -33,20 +33,20 @@ void main() {
       workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
       panelSize: const Size(360, 160),
       height: 160,
-      inset: 12,
+      inset: 8,
     );
 
-    expect(position, const Offset(780, 908));
+    expect(position, const Offset(780, 912));
   });
 
-  test('keeps a remembered position inside the work area', () {
+  test('keeps a remembered position inside the full monitor bounds', () {
     final position = codexTaskbarPanelClampPosition(
-      workArea: const Rect.fromLTWH(0, 0, 1920, 1040),
+      workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
       panelSize: const Size(360, 160),
       position: const Offset(1800, 1000),
-      inset: 12,
+      inset: 8,
     );
 
-    expect(position, const Offset(1548, 868));
+    expect(position, const Offset(1552, 912));
   });
 }
