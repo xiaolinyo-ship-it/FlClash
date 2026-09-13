@@ -72,7 +72,7 @@ jobs:
       - name: Run Codex snapshot tests
         run: >-
           flutter test --reporter expanded
-          test/features/codex/codex_account_snapshot_test.dart
+          test/features/codex
 
   windows-build:
     name: Windows debug build
