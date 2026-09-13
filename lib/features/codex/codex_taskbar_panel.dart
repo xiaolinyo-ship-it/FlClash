@@ -31,10 +31,6 @@ abstract final class CodexTaskbarPanelRuntime {
       return;
     }
     await windowManager.ensureInitialized();
-    await windowManager.setPreventClose(false);
-    await windowManager.setAlwaysOnTop(true);
-    await windowManager.setSkipTaskbar(true);
-    await windowManager.setResizable(false);
     const options = WindowOptions(
       size: Size(_panelWidth, _collapsedHeight),
       minimumSize: Size(_panelWidth, _collapsedHeight),
@@ -45,6 +41,10 @@ abstract final class CodexTaskbarPanelRuntime {
       titleBarStyle: TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(options);
+    await windowManager.setPreventClose(false);
+    await windowManager.setAlwaysOnTop(true);
+    await windowManager.setSkipTaskbar(true);
+    await windowManager.setResizable(false);
     await _placeWindow(_collapsedHeight);
     await windowManager.show();
     await windowManager.setAlwaysOnTop(true);
