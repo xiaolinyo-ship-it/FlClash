@@ -54,11 +54,9 @@ abstract final class CodexTaskbarPanelRuntime {
       return false;
     }
     try {
-      final process = await Process.start(
-        Platform.resolvedExecutable,
-        const [codexTaskbarPanelArgument],
-        mode: ProcessStartMode.detached,
-      );
+      final process = await Process.start(Platform.resolvedExecutable, const [
+        codexTaskbarPanelArgument,
+      ], mode: ProcessStartMode.detached);
       unawaited(process.exitCode);
       return true;
     } catch (error) {
@@ -295,14 +293,13 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     );
   }
 
-  Widget _buildCollapsed(
-    BuildContext context,
-    CodexAccountCardData? current,
-  ) {
+  Widget _buildCollapsed(BuildContext context, CodexAccountCardData? current) {
     final scheme = Theme.of(context).colorScheme;
     final fiveHour = current?.fiveHour?.remainingPercent;
     final weekly = current?.weekly?.remainingPercent;
-    final reset = _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
+    final reset = _shortDate(
+      current?.weekly?.resetAt ?? current?.fiveHour?.resetAt,
+    );
     return _PanelSurface(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
@@ -330,10 +327,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     );
   }
 
-  Widget _buildExpanded(
-    BuildContext context,
-    CodexAccountSnapshot? snapshot,
-  ) {
+  Widget _buildExpanded(BuildContext context, CodexAccountSnapshot? snapshot) {
     final scheme = Theme.of(context).colorScheme;
     final failure = _failure;
     final accounts = snapshot?.accounts ?? const <CodexAccountCardData>[];
@@ -394,7 +388,10 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
                   _message!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ),
@@ -422,11 +419,7 @@ class _PanelSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: scheme.outlineVariant),
         boxShadow: const [
-          BoxShadow(
-            blurRadius: 18,
-            spreadRadius: 1,
-            color: Color(0x66000000),
-          ),
+          BoxShadow(blurRadius: 18, spreadRadius: 1, color: Color(0x66000000)),
         ],
       ),
       child: child,
@@ -452,9 +445,7 @@ class _AccountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final status = missing
-        ? '读取失败'
-        : _status(account.statusAt(DateTime.now()));
+    final status = missing ? '读取失败' : _status(account.statusAt(DateTime.now()));
     final statusColor = missing || account.hasDataAnomaly
         ? scheme.error
         : scheme.primary;
@@ -479,7 +470,9 @@ class _AccountRow extends StatelessWidget {
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    current ? '当前  ${account.displayName}' : account.displayName,
+                    current
+                        ? '当前  ${account.displayName}'
+                        : account.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600),
@@ -487,7 +480,10 @@ class _AccountRow extends StatelessWidget {
                 ),
                 Text(
                   '5h ${_percent(account.fiveHour?.remainingPercent)}  W ${_percent(account.weekly?.remainingPercent)}  ${_shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
-                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 if (switching)
@@ -497,7 +493,10 @@ class _AccountRow extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  Text(status, style: TextStyle(color: statusColor, fontSize: 11)),
+                  Text(
+                    status,
+                    style: TextStyle(color: statusColor, fontSize: 11),
+                  ),
               ],
             ),
           ),
