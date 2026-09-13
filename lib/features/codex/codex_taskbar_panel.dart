@@ -52,7 +52,7 @@ abstract final class CodexTaskbarPanelRuntime {
     await _placeInitialWindow(_collapsedHeight);
     runApp(const CodexTaskbarPanelApp());
     await WidgetsBinding.instance.endOfFrame;
-    await windowManager.setSize(Size(_collapsedWidth, _collapsedHeight));
+    await windowManager.setSize(const Size(_collapsedWidth, _collapsedHeight));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAlwaysOnTop(true);
@@ -436,7 +436,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         children: [
           if (failure != null)
             _PanelToolbar(
-              failure: failure == null ? null : _failureText(failure),
+              failure: _failureText(failure),
               loading: _loading,
               onRefresh: _loading ? null : _load,
             ),
