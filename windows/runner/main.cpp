@@ -13,19 +13,26 @@
 namespace {
 
 Win32Window::Point CodexPanelOrigin() {
-  RECT work_area{};
-  if (!SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0)) {
+  const POINT primary_point = {0, 0};
+  const HMONITOR monitor =
+      MonitorFromPoint(primary_point, MONITOR_DEFAULTTOPRIMARY);
+  MONITORINFO monitor_info{};
+  monitor_info.cbSize = sizeof(MONITORINFO);
+  if (monitor == nullptr || !GetMonitorInfo(monitor, &monitor_info)) {
     return Win32Window::Point(10, 10);
   }
 
   const UINT dpi = GetDpiForSystem();
   const double scale = dpi == 0 ? 1.0 : static_cast<double>(dpi) / 96.0;
-  const unsigned int width = 420;
-  const unsigned int height = 40;
-  const unsigned int inset = 12;
-  const int left = static_cast<int>(std::lround(work_area.left / scale));
-  const int right = static_cast<int>(std::lround(work_area.right / scale));
-  const int bottom = static_cast<int>(std::lround(work_area.bottom / scale));
+  const unsigned int width = 360;
+  const unsigned int height = 36;
+  const unsigned int inset = 8;
+  const int left =
+      static_cast<int>(std::lround(monitor_info.rcMonitor.left / scale));
+  const int right =
+      static_cast<int>(std::lround(monitor_info.rcMonitor.right / scale));
+  const int bottom =
+      static_cast<int>(std::lround(monitor_info.rcMonitor.bottom / scale));
   const unsigned int x = static_cast<unsigned int>(
       left + ((right - left - static_cast<int>(width)) / 2));
   const unsigned int y = static_cast<unsigned int>(
@@ -47,7 +54,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       GetCommandLineArguments();
   bool is_codex_panel = false;
   for (const auto &argument : command_line_arguments) {
-    if (argument == "--codex-panel") {
+    if (argument == "--codex-panel" || argument == "--codex-panel-preview") {
       is_codex_panel = true;
       break;
     }
@@ -72,7 +79,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size = is_codex_panel
-                               ? Win32Window::Size(420, 40)
+                               ? Win32Window::Size(360, 36)
                                : Win32Window::Size(1280, 720);
   if (is_codex_panel) {
     origin = CodexPanelOrigin();
