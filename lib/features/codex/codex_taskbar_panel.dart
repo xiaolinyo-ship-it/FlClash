@@ -639,7 +639,7 @@ class _PanelToolbar extends StatelessWidget {
                   color: failure == null
                       ? const Color(0xffc8cbd0)
                       : const Color(0xffffb4ab),
-                fontSize: 8,
+                  fontSize: 8,
                 ),
               ),
             )
