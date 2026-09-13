@@ -115,10 +115,7 @@ abstract final class CodexTaskbarPanelRuntime {
       }
       final file = File(output);
       await file.parent.create(recursive: true);
-      await file.writeAsBytes(
-        data.buffer.asUint8List(),
-        flush: true,
-      );
+      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
     } catch (error) {
       debugPrint('Codex taskbar panel preview capture failed: $error');
     } finally {
@@ -543,7 +540,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
           height: _popupHeight,
           child: _PanelSurface(
             popup: true,
-          padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
+            padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
             onDrag: _startDragging,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -667,10 +664,7 @@ class _PanelSurface extends StatelessWidget {
         ),
       ),
     );
-    return Opacity(
-      opacity: popup ? 0.8 : 1,
-      child: surface,
-    );
+    return Opacity(opacity: popup ? 0.8 : 1, child: surface);
   }
 }
 
