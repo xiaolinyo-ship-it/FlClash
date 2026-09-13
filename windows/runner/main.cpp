@@ -45,7 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size = is_codex_panel
-                               ? Win32Window::Size(660, 40)
+                               ? Win32Window::Size(420, 40)
                                : Win32Window::Size(1280, 720);
   if (!window.Create(is_codex_panel ? L"FlClash Codex Panel" : L"FlClash",
                     origin, size, is_codex_panel)) {

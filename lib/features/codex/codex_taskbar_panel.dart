@@ -6,7 +6,6 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
-import 'package:fl_clash/features/codex/codex_account_switcher.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
 import 'package:screen_retriever/screen_retriever.dart';
@@ -14,9 +13,10 @@ import 'package:window_manager/window_manager.dart';
 
 const codexTaskbarPanelArgument = '--codex-panel';
 
-const _panelWidth = 660.0;
+const _collapsedWidth = 420.0;
+const _expandedWidth = 660.0;
 const _collapsedHeight = 40.0;
-const _expandedHeight = 150.0;
+const _expandedHeight = 126.0;
 const _screenInset = 12.0;
 const _positionFileName = 'codex-taskbar-panel-position.json';
 
@@ -35,9 +35,9 @@ abstract final class CodexTaskbarPanelRuntime {
     }
     await windowManager.ensureInitialized();
     const options = WindowOptions(
-      size: Size(_panelWidth, _collapsedHeight),
-      minimumSize: Size(_panelWidth, _collapsedHeight),
-      maximumSize: Size(_panelWidth, _expandedHeight),
+      size: Size(_collapsedWidth, _collapsedHeight),
+      minimumSize: Size(_collapsedWidth, _collapsedHeight),
+      maximumSize: Size(_expandedWidth, _expandedHeight),
       center: false,
       backgroundColor: Colors.transparent,
       skipTaskbar: true,
@@ -52,7 +52,7 @@ abstract final class CodexTaskbarPanelRuntime {
     await _placeInitialWindow(_collapsedHeight);
     runApp(const CodexTaskbarPanelApp());
     await WidgetsBinding.instance.endOfFrame;
-    await windowManager.setSize(Size(_panelWidth, _collapsedHeight));
+    await windowManager.setSize(Size(_collapsedWidth, _collapsedHeight));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAlwaysOnTop(true);
@@ -76,11 +76,12 @@ abstract final class CodexTaskbarPanelRuntime {
 
   static Future<void> resizeAndPlace(bool expanded) async {
     final height = expanded ? _expandedHeight : _collapsedHeight;
+    final width = expanded ? _expandedWidth : _collapsedWidth;
     final previousSize = await windowManager.getSize();
     final previousPosition = await windowManager.getPosition();
-    await windowManager.setSize(Size(_panelWidth, height));
+    await windowManager.setSize(Size(width, height));
     final position = Offset(
-      previousPosition.dx,
+      previousPosition.dx + (previousSize.width - width) / 2,
       previousPosition.dy + previousSize.height - height,
     );
     final workArea = await _workAreaFor(position);
@@ -88,7 +89,7 @@ abstract final class CodexTaskbarPanelRuntime {
       await windowManager.setPosition(
         codexTaskbarPanelClampPosition(
           workArea: workArea,
-          panelSize: Size(_panelWidth, height),
+          panelSize: Size(width, height),
           position: position,
           inset: _screenInset,
         ),
@@ -134,14 +135,14 @@ abstract final class CodexTaskbarPanelRuntime {
     final workArea = _workArea(display, origin);
     final position = savedPosition == null
         ? codexTaskbarPanelPosition(
-            workArea: workArea,
-            panelSize: Size(_panelWidth, height),
+        workArea: workArea,
+        panelSize: Size(_collapsedWidth, height),
             height: height,
             inset: _screenInset,
           )
         : codexTaskbarPanelClampPosition(
             workArea: workArea,
-            panelSize: Size(_panelWidth, height),
+            panelSize: Size(_expandedWidth, height),
             position: savedPosition,
             inset: _screenInset,
           );
@@ -284,13 +285,11 @@ class CodexTaskbarPanelApp extends StatelessWidget {
 
 class CodexTaskbarPanel extends StatefulWidget {
   final CodexAccountSnapshotReader? reader;
-  final CodexAccountSwitcher? switcher;
   final DateTime Function()? clock;
 
   const CodexTaskbarPanel({
     super.key,
     @visibleForTesting this.reader,
-    @visibleForTesting this.switcher,
     @visibleForTesting this.clock,
   });
 
@@ -302,12 +301,9 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   static const _refreshInterval = Duration(minutes: 2);
 
   late final CodexAccountSnapshotReader _reader;
-  late final CodexAccountSwitcher _switcher;
   CodexAccountSnapshot? _snapshot;
   Set<String> _missingAccountIds = {};
   CodexSnapshotReadFailure? _failure;
-  String? _message;
-  String? _switchingId;
   Timer? _refreshTimer;
   bool _expanded = false;
   bool _loading = false;
@@ -317,7 +313,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   void initState() {
     super.initState();
     _reader = widget.reader ?? CodexAccountSnapshotReader(clock: widget.clock);
-    _switcher = widget.switcher ?? CodexAccountSwitcher();
     _load();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _load());
   }
@@ -378,40 +373,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     }
   }
 
-  Future<void> _switchAccount(CodexAccountCardData account) async {
-    if (_switchingId != null) {
-      return;
-    }
-    setState(() {
-      _switchingId = account.id;
-      _message = '正在切换…';
-    });
-    try {
-      final result = await _switcher.switchTo(account.id);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _message = result.switched
-            ? '已切换，Codex Desktop 正在重启'
-            : (result.failure ?? '切换失败');
-        _switchingId = null;
-      });
-      if (result.switched) {
-        await Future<void>.delayed(const Duration(seconds: 2));
-        await _load();
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _switchingId = null;
-        _message = '切换失败：$error';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final snapshot = _snapshot;
@@ -432,7 +393,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         color: Colors.transparent,
         child: _expanded
             ? _buildExpanded(context, snapshot)
-            : _buildCollapsed(context, current),
+        : _buildCollapsed(context, current),
       ),
     );
   }
@@ -440,18 +401,25 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   Widget _buildCollapsed(BuildContext context, CodexAccountCardData? current) {
     final fiveHour = current?.fiveHour?.remainingPercent;
     final weekly = current?.weekly?.remainingPercent;
-    final reset = _shortDate(
-      current?.weekly?.resetAt ?? current?.fiveHour?.resetAt,
-    );
-    return _PanelSurface(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      onDrag: _startDragging,
-      child: _SummaryLine(
-        account: current,
-        fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
-        weekly: current?.hasDataAnomaly == true ? null : weekly,
-        reset: reset,
-        loading: _loading,
+    final reset = current?.hasDataAnomaly == true
+        ? '--.--'
+        : _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
+    return Center(
+      child: SizedBox(
+        width: 396,
+        height: 30,
+        child: _PanelSurface(
+          popup: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          onDrag: _startDragging,
+          child: _SummaryLine(
+            account: current,
+            fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
+            weekly: current?.hasDataAnomaly == true ? null : weekly,
+            reset: reset,
+            loading: _loading,
+          ),
+        ),
       ),
     );
   }
@@ -460,15 +428,15 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     final failure = _failure;
     final accounts = snapshot?.accounts ?? const <CodexAccountCardData>[];
     return _PanelSurface(
+      popup: true,
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       onDrag: _startDragging,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (failure != null || _message != null)
+          if (failure != null)
             _PanelToolbar(
               failure: failure == null ? null : _failureText(failure),
-              message: _message,
               loading: _loading,
               onRefresh: _loading ? null : _load,
             ),
@@ -486,8 +454,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
                 account: account,
                 currentConfirmed: snapshot?.currentConfirmed ?? false,
                 missing: _missingAccountIds.contains(account.id),
-                switching: _switchingId == account.id,
-                onTap: () => _switchAccount(account),
               ),
         ],
       ),
@@ -499,17 +465,23 @@ class _PanelSurface extends StatelessWidget {
   final EdgeInsets padding;
   final Widget child;
   final Future<void> Function()? onDrag;
+  final bool popup;
 
-  const _PanelSurface({required this.padding, required this.child, this.onDrag});
+  const _PanelSurface({
+    required this.padding,
+    required this.child,
+    required this.popup,
+    this.onDrag,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.all(Radius.circular(20)),
-        boxShadow: [
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.all(Radius.circular(popup ? 20 : 14)),
+        boxShadow: const [
           BoxShadow(
             blurRadius: 20,
             spreadRadius: 1,
@@ -525,16 +497,22 @@ class _PanelSurface extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onPanStart: onDrag == null ? null : (_) => unawaited(onDrag!()),
           child: ClipRRect(
-            borderRadius: const BorderRadius.all(Radius.circular(20)),
+            borderRadius: BorderRadius.all(Radius.circular(popup ? 20 : 14)),
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
               child: Container(
                 padding: padding,
                 decoration: BoxDecoration(
-                  color: const Color(0xC4171F2B),
-                  borderRadius: const BorderRadius.all(Radius.circular(20)),
+                  color: popup
+                      ? const Color(0xCC171F2B)
+                      : const Color(0xBDD5E7F2),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(popup ? 20 : 14),
+                  ),
                   border: Border.all(
-                    color: const Color(0x8AFFFFFF),
+                    color: popup
+                        ? const Color(0x8AFFFFFF)
+                        : const Color(0x99FFFFFF),
                     width: 1.0,
                   ),
                 ),
@@ -568,13 +546,16 @@ class _SummaryLine extends StatelessWidget {
     final name = account?.displayName ?? 'Codex 账户未确认';
     return Row(
       children: [
-        _StatusDot(current: account != null && account!.isCurrent),
+        _StatusDot(
+          current: account != null && account!.isCurrent,
+          color: const Color(0xff36556b),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text.rich(
             TextSpan(
               style: const TextStyle(
-                color: Color(0xffe3e5e8),
+                color: Color(0xff182a36),
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -583,16 +564,16 @@ class _SummaryLine extends StatelessWidget {
                 const TextSpan(text: '   5h '),
                 TextSpan(
                   text: _percent(fiveHour),
-                  style: const TextStyle(color: Color(0xffb7e4bf)),
+                  style: const TextStyle(color: Color(0xff3f8f5b)),
                 ),
                 const TextSpan(text: '  |  W '),
                 TextSpan(
                   text: _percent(weekly),
-                  style: const TextStyle(color: Color(0xffb7e4bf)),
+                  style: const TextStyle(color: Color(0xff3f8f5b)),
                 ),
                 TextSpan(
                   text: '  |  $reset',
-                  style: const TextStyle(color: Color(0xffc8cbd0)),
+                  style: const TextStyle(color: Color(0xff40505a)),
                 ),
               ],
             ),
@@ -619,20 +600,18 @@ class _SummaryLine extends StatelessWidget {
 
 class _PanelToolbar extends StatelessWidget {
   final String? failure;
-  final String? message;
   final bool loading;
   final VoidCallback? onRefresh;
 
   const _PanelToolbar({
     required this.failure,
-    required this.message,
     required this.loading,
     required this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
-    final text = failure ?? message;
+    final text = failure;
     return SizedBox(
       height: 20,
       child: Row(
@@ -718,15 +697,11 @@ class _AccountRow extends StatelessWidget {
   final CodexAccountCardData account;
   final bool currentConfirmed;
   final bool missing;
-  final bool switching;
-  final VoidCallback onTap;
 
   const _AccountRow({
     required this.account,
     required this.currentConfirmed,
     required this.missing,
-    required this.switching,
-    required this.onTap,
   });
 
   @override
@@ -734,43 +709,37 @@ class _AccountRow extends StatelessWidget {
     final status = missing ? '读取失败' : _status(account.statusAt(DateTime.now()));
     final current = currentConfirmed && account.isCurrent;
     final statusColor = missing || account.hasDataAnomaly
-        ? const Color(0xffffb4ab)
+        ? const Color(0xffffcf8a)
         : status == '已用尽'
-            ? const Color(0xffff8a80)
-            : const Color(0xffe7c48c);
+            ? const Color(0xffffb4b4)
+            : const Color(0xff9be8b5);
     final showStatus = status != '正常';
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Container(
         decoration: BoxDecoration(
           color: current
-              ? const Color(0x665E6570)
-              : const Color(0x4D5A606A),
+              ? const Color(0x1A74D69B)
+              : const Color(0x0EFFFFFF),
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: current
-                ? const Color(0xB8E1E5EA)
-                : const Color(0x2DE1E5EA),
-            width: current ? 1.1 : .7,
+                ? const Color(0x8074D69B)
+                : const Color(0x00FFFFFF),
+            width: current ? 1.0 : .5,
           ),
         ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(13),
-          child: InkWell(
-            onTap: missing || switching ? null : onTap,
-            borderRadius: BorderRadius.circular(13),
-            child: Padding(
+        child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
               child: Row(
                 children: [
                   _StatusDot(
                     current: current,
                     color: missing || account.hasDataAnomaly
-                        ? const Color(0xffff8f85)
+                        ? const Color(0xffffcf8a)
                         : current
-                            ? const Color(0xffe7eaee)
-                            : const Color(0xffa9adb3),
+                            ? const Color(0xff74d69b)
+                            : const Color(0x8AFFFFFF),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -817,7 +786,7 @@ class _AccountRow extends StatelessWidget {
                         ),
                         TextSpan(
                           text:
-                              '  |  ${_shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
+                              '  |  ${account.hasDataAnomaly ? '--.--' : _shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
                           style: const TextStyle(color: Color(0xffc8cbd0)),
                         ),
                       ],
@@ -825,19 +794,7 @@ class _AccountRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.clip,
                   ),
-                  if (switching)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 9),
-                      child: SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.8,
-                          color: Color(0xffe7eaee),
-                        ),
-                      ),
-                    )
-                  else if (showStatus)
+                  if (showStatus)
                     Padding(
                       padding: const EdgeInsets.only(left: 9),
                       child: Text(
@@ -852,7 +809,6 @@ class _AccountRow extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
