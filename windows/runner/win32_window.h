@@ -95,6 +95,10 @@ class Win32Window {
 
   bool quit_on_close_ = false;
 
+  // Codex's floating panel uses a frameless popup window so the Flutter
+  // surface owns the complete visual frame.
+  bool is_codex_panel_ = false;
+
   // window handle for top level window.
   HWND window_handle_ = nullptr;
 

@@ -125,6 +125,7 @@ bool Win32Window::Create(const std::wstring& title,
                          const Size& size,
                          bool is_codex_panel) {
   Destroy();
+  is_codex_panel_ = is_codex_panel;
 
   const wchar_t* window_class =
       WindowClassRegistrar::GetInstance()->GetWindowClass();
@@ -184,6 +185,12 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case WM_NCCALCSIZE:
+      if (is_codex_panel_) {
+        return 0;
+      }
+      break;
+
     case WM_DESTROY:
       window_handle_ = nullptr;
       Destroy();

@@ -2,11 +2,38 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <cmath>
+
 #include <app_links/app_links_plugin_c_api.h>
 #include <window_manager/window_manager_plugin.h>
 
 #include "flutter_window.h"
 #include "utils.h"
+
+namespace {
+
+Win32Window::Point CodexPanelOrigin() {
+  RECT work_area{};
+  if (!SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0)) {
+    return Win32Window::Point(10, 10);
+  }
+
+  const UINT dpi = GetDpiForSystem();
+  const double scale = dpi == 0 ? 1.0 : static_cast<double>(dpi) / 96.0;
+  const unsigned int width = 420;
+  const unsigned int height = 40;
+  const unsigned int inset = 12;
+  const int left = static_cast<int>(std::lround(work_area.left / scale));
+  const int right = static_cast<int>(std::lround(work_area.right / scale));
+  const int bottom = static_cast<int>(std::lround(work_area.bottom / scale));
+  const unsigned int x = static_cast<unsigned int>(
+      left + ((right - left - static_cast<int>(width)) / 2));
+  const unsigned int y = static_cast<unsigned int>(
+      bottom - static_cast<int>(height + inset));
+  return Win32Window::Point(x, y);
+}
+
+}  // namespace
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -47,6 +74,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   Win32Window::Size size = is_codex_panel
                                ? Win32Window::Size(420, 40)
                                : Win32Window::Size(1280, 720);
+  if (is_codex_panel) {
+    origin = CodexPanelOrigin();
+  }
   if (!window.Create(is_codex_panel ? L"FlClash Codex Panel" : L"FlClash",
                     origin, size, is_codex_panel)) {
     return EXIT_FAILURE;
