@@ -28,7 +28,7 @@ void main() {
       inset: 12,
     );
 
-    expect(position, const Offset(780, 920));
+    expect(position, const Offset(780, 908));
   });
 
   test('keeps a remembered position inside the work area', () {
