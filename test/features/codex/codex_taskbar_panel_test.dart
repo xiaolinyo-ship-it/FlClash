@@ -12,33 +12,33 @@ void main() {
   test('centers the collapsed pill above the work-area taskbar', () {
     final position = codexTaskbarPanelPosition(
       workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
-      panelSize: const Size(420, 40),
-      height: 40,
+      panelSize: const Size(240, 26),
+      height: 26,
       inset: 12,
     );
 
-    expect(position, const Offset(750, 1028));
+    expect(position, const Offset(840, 1042));
   });
 
   test('centers the expanded popup over the same pill anchor', () {
     final position = codexTaskbarPanelPosition(
       workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
-      panelSize: const Size(660, 126),
-      height: 126,
+      panelSize: const Size(324, 112),
+      height: 112,
       inset: 12,
     );
 
-    expect(position, const Offset(630, 942));
+    expect(position, const Offset(798, 956));
   });
 
   test('keeps a remembered position inside the work area', () {
     final position = codexTaskbarPanelClampPosition(
       workArea: const Rect.fromLTWH(0, 0, 1920, 1040),
-      panelSize: const Size(660, 150),
+      panelSize: const Size(324, 150),
       position: const Offset(1800, 1000),
       inset: 12,
     );
 
-    expect(position, const Offset(1248, 878));
+    expect(position, const Offset(1584, 878));
   });
 }
