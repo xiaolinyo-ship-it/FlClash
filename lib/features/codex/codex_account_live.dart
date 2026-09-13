@@ -68,11 +68,21 @@ class CodexAccountLiveReader {
     var records = <_CodexAuthRecord>[];
     final byIdentity = <String, _CodexAuthRecord>{};
     for (final home in homes) {
-      final record = await _readAuth(home);
+      final record = await _readAuth(
+        home.home,
+        registeredId: home.registeredId,
+      );
       if (record == null || record.accessToken == null) {
         continue;
       }
-      final key = record.providerAccountId ?? record.email ?? home.path;
+      // A registered home is an independent account slot. Login switching
+      // can temporarily make two homes contain the same provider identity;
+      // collapsing them here would silently remove a registered account.
+      if (registeredHomes != null) {
+        records.add(record);
+        continue;
+      }
+      final key = record.providerAccountId ?? record.email ?? home.home.path;
       final previous = byIdentity[key.toLowerCase()];
       if (previous == null || _preferRecord(record, previous)) {
         byIdentity[key.toLowerCase()] = record;
@@ -143,23 +153,27 @@ class CodexAccountLiveReader {
     );
   }
 
-  Future<List<Directory>> _discoverHomes(List<String>? registeredHomes) async {
-    final result = <Directory>[];
+  Future<List<_CodexHome>> _discoverHomes(
+    List<_RegisteredCodexHome>? registeredHomes,
+  ) async {
+    final result = <_CodexHome>[];
     final seen = <String>{};
-    final add = (String? rawPath) {
+    final add = (String? rawPath, {String? registeredId}) {
       if (rawPath == null || rawPath.trim().isEmpty) {
         return;
       }
       final normalized = path.normalize(rawPath);
       final key = normalized.toLowerCase();
       if (seen.add(key)) {
-        result.add(Directory(normalized));
+        result.add(
+          _CodexHome(Directory(normalized), registeredId: registeredId),
+        );
       }
     };
 
     if (registeredHomes != null) {
       for (final home in registeredHomes) {
-        add(home);
+        add(home.home, registeredId: home.id);
       }
     } else {
       add(ambientHomePath ?? _defaultAmbientHome());
@@ -171,7 +185,9 @@ class CodexAccountLiveReader {
         await for (final entry in managed.list(followLinks: false)) {
           if (entry is Directory &&
               (registeredHomes == null ||
-                  registeredHomes.any((home) => _samePath(home, entry.path)))) {
+                  registeredHomes.any(
+                    (home) => _samePath(home.home, entry.path),
+                  ))) {
             add(entry.path);
           }
         }
@@ -182,7 +198,7 @@ class CodexAccountLiveReader {
     return result;
   }
 
-  Future<List<String>?> _readRegistry() async {
+  Future<List<_RegisteredCodexHome>?> _readRegistry() async {
     final file = _registryFile;
     if (file == null || !await file.exists()) {
       return null;
@@ -192,12 +208,17 @@ class CodexAccountLiveReader {
       if (decoded is! Map || decoded['accounts'] is! List) {
         return null;
       }
-      final homes = <String>[];
+      final homes = <_RegisteredCodexHome>[];
       for (final item in decoded['accounts'] as List) {
         if (item is Map) {
           final home = _string(item['home']);
           if (home != null) {
-            homes.add(home);
+            homes.add(
+              _RegisteredCodexHome(
+                id: _string(item['id']) ?? path.basename(home),
+                home: home,
+              ),
+            );
           }
         }
       }
@@ -286,7 +307,10 @@ class CodexAccountLiveReader {
     return File(path.join(appData, 'FlClash', 'codex-accounts-registry.json'));
   }
 
-  Future<_CodexAuthRecord?> _readAuth(Directory home) async {
+  Future<_CodexAuthRecord?> _readAuth(
+    Directory home, {
+    String? registeredId,
+  }) async {
     final file = File(path.join(home.path, 'auth.json'));
     try {
       final decoded = jsonDecode(await file.readAsString());
@@ -313,6 +337,7 @@ class CodexAccountLiveReader {
           _jwtString(idToken, ['https://api.openai.com/profile.email']);
       return _CodexAuthRecord(
         home: home,
+        registeredId: registeredId,
         document: document,
         accessToken: accessToken,
         refreshToken: refreshToken,
@@ -596,6 +621,7 @@ class CodexAccountLiveReader {
       await _writeAuth(record.home, nextDocument);
       return _CodexAuthRecord(
         home: record.home,
+        registeredId: record.registeredId,
         document: nextDocument,
         accessToken: accessToken,
         refreshToken: nextTokens['refresh_token'] as String?,
@@ -878,6 +904,7 @@ class CodexAccountLiveReader {
 
 class _CodexAuthRecord {
   final Directory home;
+  final String? registeredId;
   final Map<String, dynamic> document;
   final String? accessToken;
   final String? refreshToken;
@@ -889,6 +916,7 @@ class _CodexAuthRecord {
 
   const _CodexAuthRecord({
     required this.home,
+    required this.registeredId,
     required this.document,
     required this.accessToken,
     required this.refreshToken,
@@ -899,10 +927,24 @@ class _CodexAuthRecord {
     required this.lastRefresh,
   });
 
-  String get stableId => providerAccountId ?? path.basename(home.path);
+  String get stableId => registeredId ?? providerAccountId ?? path.basename(home.path);
 
   String get identityKey =>
       (providerAccountId ?? email ?? home.path).toLowerCase();
+}
+
+class _RegisteredCodexHome {
+  final String id;
+  final String home;
+
+  const _RegisteredCodexHome({required this.id, required this.home});
+}
+
+class _CodexHome {
+  final Directory home;
+  final String? registeredId;
+
+  const _CodexHome(this.home, {this.registeredId});
 }
 
 bool _preferRecord(_CodexAuthRecord candidate, _CodexAuthRecord current) {

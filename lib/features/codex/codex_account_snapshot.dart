@@ -231,6 +231,7 @@ class CodexSnapshotReadResult {
   final CodexSnapshotReadFailure? failure;
   final bool fromCache;
   final int missingAccountCount;
+  final List<String> missingAccountIds;
   final CodexSnapshotSource source;
 
   const CodexSnapshotReadResult({
@@ -238,6 +239,7 @@ class CodexSnapshotReadResult {
     required this.failure,
     this.fromCache = false,
     this.missingAccountCount = 0,
+    this.missingAccountIds = const [],
     this.source = CodexSnapshotSource.codexBarSnapshot,
   });
 }
@@ -266,8 +268,9 @@ class CodexAccountSnapshotReader {
             ? await liveReader!()
             : await CodexAccountLiveReader(clock: _clock).read();
         if (liveProbe.snapshot != null) {
-          await _writeCache(liveProbe.snapshot!);
-          return liveProbe;
+          final completed = await _completeLiveResult(liveProbe);
+          await _writeCache(completed.snapshot!);
+          return completed;
         }
       } catch (_) {
         // The snapshot and cache paths below keep the dashboard available.
@@ -336,6 +339,140 @@ class CodexAccountSnapshotReader {
     }
   }
 
+  /// Keeps registered account slots visible when a login switch temporarily
+  /// changes the provider identity stored in one Codex home. Such a card is
+  /// explicitly marked as missing live data by the dashboard; it is never
+  /// presented as a fresh reading.
+  Future<CodexSnapshotReadResult> _completeLiveResult(
+    CodexSnapshotReadResult liveResult,
+  ) async {
+    final liveSnapshot = liveResult.snapshot!;
+    final liveAccounts = liveSnapshot.accounts;
+    final providerCounts = <String, int>{};
+    for (final account in liveAccounts) {
+      final providerId = account.providerAccountId?.toLowerCase();
+      if (providerId != null) {
+        providerCounts[providerId] = (providerCounts[providerId] ?? 0) + 1;
+      }
+    }
+    final hasProviderCollision = providerCounts.values.any(
+      (count) => count > 1,
+    );
+    final hasIdentityChange = liveAccounts.any((account) {
+      final providerId = account.providerAccountId?.toLowerCase();
+      return providerId != null && providerId != account.id.toLowerCase();
+    });
+    final needsRecovery =
+        liveResult.missingAccountCount > 0 ||
+        hasProviderCollision ||
+        hasIdentityChange;
+
+    CodexAccountSnapshot? historical;
+    if (needsRecovery) {
+      historical = await _readHistoricalSnapshot();
+    }
+    final historicalByProvider = <String, CodexAccountCardData>{};
+    if (historical != null) {
+      for (final account in historical.accounts) {
+        final providerId = account.providerAccountId?.toLowerCase();
+        if (providerId != null) {
+          historicalByProvider[providerId] = account;
+        }
+      }
+    }
+
+    final accountsById = <String, CodexAccountCardData>{};
+    final missingAccountIds = <String>{...liveResult.missingAccountIds};
+    var usedHistoricalData = false;
+    for (final account in liveAccounts) {
+      final providerId = account.providerAccountId?.toLowerCase();
+      final identityChanged =
+          providerId != null && providerId != account.id.toLowerCase();
+      final historicalAccount = historicalByProvider[account.id.toLowerCase()];
+      if (identityChanged && historicalAccount != null) {
+        accountsById[account.id] = _copyAccount(
+          historicalAccount,
+          id: account.id,
+          isCurrent: false,
+        );
+        missingAccountIds.add(account.id);
+        usedHistoricalData = true;
+      } else {
+        accountsById[account.id] = account;
+      }
+    }
+
+    // Restore a slot that had no usable live quota response from the last
+    // CodexBar snapshot. Cache is considered after the producer snapshot so
+    // an available historical account identity can recover an old cache that
+    // was previously overwritten by a partial live read.
+    if (needsRecovery && historical != null) {
+      for (final account in historical.accounts) {
+        final providerId = account.providerAccountId;
+        if (providerId == null || accountsById.containsKey(providerId)) {
+          continue;
+        }
+        accountsById[providerId] = _copyAccount(
+          account,
+          id: providerId,
+          isCurrent: false,
+        );
+        missingAccountIds.add(providerId);
+        usedHistoricalData = true;
+      }
+    }
+
+    if (needsRecovery) {
+      final cached = await _readCache();
+      if (cached != null) {
+        for (final account in cached.accounts) {
+          if (accountsById.containsKey(account.id)) {
+            continue;
+          }
+          accountsById[account.id] = account;
+          missingAccountIds.add(account.id);
+        }
+      }
+    }
+
+    final accounts = accountsById.values.toList()
+      ..sort((left, right) => left.id.compareTo(right.id));
+    final missingCount = liveResult.missingAccountCount > missingAccountIds.length
+        ? liveResult.missingAccountCount
+        : missingAccountIds.length;
+    return CodexSnapshotReadResult(
+      snapshot: CodexAccountSnapshot(
+        accounts: accounts,
+        readAt: liveSnapshot.readAt,
+        source: liveSnapshot.source,
+        currentConfirmed:
+            liveSnapshot.currentConfirmed && !usedHistoricalData,
+      ),
+      failure: liveResult.failure,
+      fromCache: liveResult.fromCache || usedHistoricalData,
+      missingAccountCount: missingCount,
+      missingAccountIds: missingAccountIds.toList()..sort(),
+      source: liveResult.source,
+    );
+  }
+
+  Future<CodexAccountSnapshot?> _readHistoricalSnapshot() async {
+    try {
+      final raw = await _readRaw();
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return null;
+      }
+      return CodexAccountSnapshot.fromJson(
+        Map<String, dynamic>.from(decoded),
+        readAt: _clock(),
+      );
+    } catch (_) {
+      // A missing, busy, or malformed CodexBar file must not affect FlClash.
+      return null;
+    }
+  }
+
   Future<CodexSnapshotReadResult> _withCacheFallback(
     CodexSnapshotReadResult liveResult,
   ) async {
@@ -348,6 +485,7 @@ class CodexAccountSnapshotReader {
       failure: liveResult.failure,
       fromCache: true,
       missingAccountCount: liveResult.missingAccountCount,
+      missingAccountIds: liveResult.missingAccountIds,
     );
   }
 
@@ -475,4 +613,22 @@ String _displayName(String id, String? email) {
   final local = email.substring(0, at);
   final prefix = local.substring(0, local.length.clamp(0, 2));
   return '$prefix***${email.substring(at)}';
+}
+
+CodexAccountCardData _copyAccount(
+  CodexAccountCardData account, {
+  required String id,
+  required bool isCurrent,
+}) {
+  return CodexAccountCardData(
+    id: id,
+    providerAccountId: account.providerAccountId,
+    email: account.email,
+    displayName: account.displayName,
+    fiveHour: account.fiveHour,
+    weekly: account.weekly,
+    monthly: account.monthly,
+    updatedAt: account.updatedAt,
+    isCurrent: isCurrent,
+  );
 }

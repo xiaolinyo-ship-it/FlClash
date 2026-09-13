@@ -62,7 +62,10 @@ class _CodexAccountsState extends State<CodexAccounts> {
     if (nextSnapshot != null) {
       final previousIds = _snapshot?.accounts.map((item) => item.id).toSet();
       final nextIds = nextSnapshot.accounts.map((item) => item.id).toSet();
-      final missing = {..._missingAccountIds};
+      final missing = {
+        ..._missingAccountIds,
+        ...result.missingAccountIds,
+      };
       if (previousIds != null) {
         missing.addAll(previousIds.difference(nextIds));
       }
@@ -162,7 +165,9 @@ class _CodexAccountsState extends State<CodexAccounts> {
                                   width: width,
                                   child: _CodexAccountCard(
                                     account: account,
-                                    status: failure == null
+                                    status: _missingAccountIds.contains(account.id)
+                                        ? CodexAccountStatus.readFailed
+                                        : failure == null
                                         ? account.statusAt(now)
                                         : CodexAccountStatus.readFailed,
                                     localizations: appLocalizations,
