@@ -44,6 +44,7 @@ abstract final class CodexTaskbarPanelRuntime {
       titleBarStyle: TitleBarStyle.hidden,
     );
     await windowManager.waitUntilReadyToShow(options);
+    await windowManager.setAsFrameless();
     await windowManager.setPreventClose(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
