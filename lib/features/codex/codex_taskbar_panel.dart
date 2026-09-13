@@ -48,7 +48,6 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.setPreventClose(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
-    await windowManager.setMovable(true);
     await windowManager.setResizable(false);
     await _placeInitialWindow(_collapsedHeight);
     runApp(const CodexTaskbarPanelApp());
