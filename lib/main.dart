@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/features/codex/codex_taskbar_panel.dart';
 import 'package:fl_clash/pages/error.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,10 @@ void main(List<String> args) {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      if (isCodexTaskbarPanel(args)) {
+        await CodexTaskbarPanelRuntime.run();
+        return;
+      }
       if (Platform.isLinux) {
         linkManager.seedInitialLink(args);
       }

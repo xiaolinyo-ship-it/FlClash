@@ -1,9 +1,4 @@
-import 'dart:async';
-
-import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/features/codex/codex_account_switcher.dart';
-import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -25,10 +20,6 @@ class AppTray implements TrayPort {
   final bool isWindows;
 
   bool _isShutDown = false;
-  bool _codexSwitching = false;
-  TrayState? _lastTrayState;
-  Traffic? _lastTraffic;
-  ProviderReader? _lastReader;
 
   AppTray._internal({required this.isMacOS, required this.isWindows});
 
@@ -80,10 +71,6 @@ class AppTray implements TrayPort {
     if (_isShutDown) {
       return;
     }
-    _lastTrayState = trayState;
-    _lastTraffic = traffic;
-    _lastReader = read;
-    final codex = await CodexAccountSnapshotReader().read();
     await Tray.instance.show(
       TraySpec(
         icon: TrayIcon.asset(
@@ -93,8 +80,8 @@ class AppTray implements TrayPort {
           ),
           isTemplate: isMacOS,
         ),
-        toolTip: _trayToolTip(codex),
-        menu: _buildMenu(trayState: trayState, read: read, codex: codex),
+        toolTip: appName,
+        menu: _buildMenu(trayState: trayState, read: read),
       ),
     );
     await updateTitle(showTrayTitle: trayState.showTrayTitle, traffic: traffic);
@@ -113,7 +100,6 @@ class AppTray implements TrayPort {
   List<TrayMenuItem> _buildMenu({
     required TrayState trayState,
     required ProviderReader read,
-    required CodexSnapshotReadResult codex,
   }) {
     final commonAction = read(commonActionProvider.notifier);
     final systemAction = read(systemActionProvider.notifier);
@@ -140,7 +126,6 @@ class AppTray implements TrayPort {
           checked: trayState.showTrayTitle,
           onSelected: commonAction.updateSpeedStatistics,
         ),
-      ..._buildCodexMenu(codex),
       const TrayMenuSeparator(),
       for (final mode in Mode.values)
         TrayMenuCheckbox(
@@ -186,82 +171,6 @@ class AppTray implements TrayPort {
     ];
   }
 
-  List<TrayMenuItem> _buildCodexMenu(CodexSnapshotReadResult result) {
-    final snapshot = result.snapshot;
-    if (snapshot == null || snapshot.accounts.isEmpty) {
-      return const [];
-    }
-    final currentConfirmed = snapshot.currentConfirmed;
-    return [
-      TrayMenuAction(
-        label: currentConfirmed ? 'Codex 账户（单击切换）' : 'Codex 账户（当前账户未确认）',
-        enabled: false,
-      ),
-      for (final account in snapshot.accounts)
-        TrayMenuCheckbox(
-          label: _trayAccountLabel(
-            account,
-            currentConfirmed: currentConfirmed,
-            readFailed: result.missingAccountIds.contains(account.id),
-          ),
-          checked: currentConfirmed && account.isCurrent,
-          enabled: !result.missingAccountIds.contains(account.id),
-          onSelected: () {
-            unawaited(_switchCodexAccount(account.id));
-          },
-        ),
-    ];
-  }
-
-  String _trayToolTip(CodexSnapshotReadResult result) {
-    final snapshot = result.snapshot;
-    if (snapshot == null || snapshot.accounts.isEmpty) {
-      return appName;
-    }
-    final first = snapshot.accounts
-        .take(3)
-        .map(
-          (account) => _trayAccountLabel(
-            account,
-            currentConfirmed: snapshot.currentConfirmed,
-          ),
-        )
-        .join('\n');
-    return '$appName\n$first';
-  }
-
-  Future<void> _switchCodexAccount(String accountId) async {
-    if (_codexSwitching || _isShutDown) {
-      return;
-    }
-    _codexSwitching = true;
-    try {
-      final result = await CodexAccountSwitcher().switchTo(accountId);
-      if (!result.switched) {
-        commonPrint.log(
-          'Codex account switch skipped: ${result.failure ?? 'unknown reason'}',
-          logLevel: LogLevel.warning,
-        );
-        return;
-      }
-      commonPrint.log('Codex account switched; desktop restart scheduled');
-      await Future<void>.delayed(const Duration(seconds: 1));
-      final trayState = _lastTrayState;
-      final traffic = _lastTraffic;
-      final read = _lastReader;
-      if (trayState != null && traffic != null && read != null) {
-        await update(trayState: trayState, traffic: traffic, read: read);
-      }
-    } catch (error) {
-      commonPrint.log(
-        'Codex account switch failed: ${compactError(error)}',
-        logLevel: LogLevel.error,
-      );
-    } finally {
-      _codexSwitching = false;
-    }
-  }
-
   List<TrayMenuItem> _buildGroupMenu({
     required TrayState trayState,
     required ProviderReader read,
@@ -300,42 +209,6 @@ class AppTray implements TrayPort {
 
     await Clipboard.setData(ClipboardData(text: cmdline));
   }
-}
-
-String _trayAccountLabel(
-  CodexAccountCardData account, {
-  required bool currentConfirmed,
-  bool readFailed = false,
-}) {
-  final weekly = _trayPercent(account.weekly?.remainingPercent);
-  final fiveHour = _trayPercent(account.fiveHour?.remainingPercent);
-  final current = account.isCurrent
-      ? (currentConfirmed ? '（当前）' : '（当前未确认）')
-      : '';
-  final status = readFailed ? '读取失败' : _trayStatus(account);
-  final reset = _trayDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt);
-  return '${account.displayName}$current  5h $fiveHour | W $weekly | $reset  $status';
-}
-
-String _trayPercent(double? value) =>
-    value == null ? '未提供' : '${value.round()}%';
-
-String _trayDate(DateTime? value) {
-  if (value == null) {
-    return '重置 —';
-  }
-  final local = value.toLocal();
-  return '重置 ${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
-}
-
-String _trayStatus(CodexAccountCardData account) {
-  return switch (account.statusAt(DateTime.now())) {
-    CodexAccountStatus.normal => '正常',
-    CodexAccountStatus.exhausted => '已用尽',
-    CodexAccountStatus.expired => '数据过期',
-    CodexAccountStatus.dataAnomaly => '数据异常',
-    CodexAccountStatus.readFailed => '读取失败',
-  };
 }
 
 final appTray = system.isDesktop ? AppTray() : null;

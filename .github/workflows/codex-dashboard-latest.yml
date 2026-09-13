@@ -189,6 +189,18 @@ jobs:
               throw 'FlClash process started but did not expose a main window within 60 seconds'
             }
 
+            $panelDeadline = (Get-Date).AddSeconds(15)
+            $panelProcesses = @()
+            do {
+              Start-Sleep -Milliseconds 500
+              $panelProcesses = @(Get-CimInstance Win32_Process | Where-Object {
+                $_.ExecutablePath -eq $exe -and $_.CommandLine -like '*--codex-panel*'
+              })
+            } while ($panelProcesses.Count -eq 0 -and (Get-Date) -lt $panelDeadline)
+            if ($panelProcesses.Count -eq 0) {
+              throw 'FlClash did not start the independent Codex taskbar panel process'
+            }
+
             $window = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
             $all = $window.FindAll(
               [System.Windows.Automation.TreeScope]::Descendants,
@@ -229,6 +241,11 @@ jobs:
               Set-Content -LiteralPath (Join-Path $smokeRoot 'result.txt') -Encoding utf8
           }
           finally {
+            Get-CimInstance Win32_Process | Where-Object {
+              $_.ExecutablePath -eq $exe -and $_.CommandLine -like '*--codex-panel*'
+            } | ForEach-Object {
+              Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+            }
             if ($null -ne $process -and -not $process.HasExited) {
               Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
               $process.WaitForExit(10000)

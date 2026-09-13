@@ -22,15 +22,11 @@ class TrayManager extends ConsumerStatefulWidget {
 
 class _TrayManagerState extends ConsumerState<TrayManager> {
   StreamSubscription<TrayEvent>? _subscription;
-  Timer? _codexRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _subscription = Tray.instance.events.listen(_handleTrayEvent);
-    _codexRefreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
-      _reportFailure(ref.read(systemActionProvider.notifier).updateTray());
-    });
     ref.listenManual(trayStateProvider, (prev, next) {
       if (prev != next) {
         _reportFailure(ref.read(systemActionProvider.notifier).updateTray());
@@ -88,7 +84,6 @@ class _TrayManagerState extends ConsumerState<TrayManager> {
   @override
   void dispose() {
     _subscription?.cancel();
-    _codexRefreshTimer?.cancel();
     super.dispose();
   }
 }
