@@ -121,7 +121,7 @@ abstract final class CodexTaskbarPanelRuntime {
       (item) =>
           item.visiblePosition != null &&
           (savedPosition == null ||
-              _workArea(item, item.visiblePosition!).contains(savedPosition!)),
+              _workArea(item, item.visiblePosition!).contains(savedPosition)),
       orElse: () => displays.first,
     );
     final origin = display.visiblePosition;
