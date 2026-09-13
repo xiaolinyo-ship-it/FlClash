@@ -13,13 +13,15 @@ import 'package:window_manager/window_manager.dart';
 
 const codexTaskbarPanelArgument = '--codex-panel';
 
-// These are logical pixels.  The reference CodexBar popup is 324 CSS pixels
-// wide; on a 200% Windows display that becomes the compact ~648px glass card
-// shown in the reference capture.
-const _collapsedWidth = 196.0;
-const _expandedWidth = 324.0;
-const _collapsedHeight = 24.0;
-const _popupHeight = 112.0;
+// These are logical pixels.  CodexBar uses a transparent 360x36 FloatBar
+// window and a 324x120 account popup.  The visible taskbar pill is narrower
+// than its native window and remains centered below the popup when expanded.
+const _panelWidth = 360.0;
+const _popupWidth = 324.0;
+const _pillWidth = 196.0;
+const _collapsedHeight = 36.0;
+const _pillHeight = 20.0;
+const _popupHeight = 120.0;
 const _panelGap = 4.0;
 const _expandedHeight = _popupHeight + _panelGap + _collapsedHeight;
 const _screenInset = 12.0;
@@ -40,9 +42,9 @@ abstract final class CodexTaskbarPanelRuntime {
     }
     await windowManager.ensureInitialized();
     const options = WindowOptions(
-      size: Size(_collapsedWidth, _collapsedHeight),
-      minimumSize: Size(_collapsedWidth, _collapsedHeight),
-      maximumSize: Size(_expandedWidth, _expandedHeight),
+      size: Size(_panelWidth, _collapsedHeight),
+      minimumSize: Size(_panelWidth, _collapsedHeight),
+      maximumSize: Size(_panelWidth, _expandedHeight),
       center: false,
       backgroundColor: Colors.transparent,
       skipTaskbar: true,
@@ -57,7 +59,7 @@ abstract final class CodexTaskbarPanelRuntime {
     await _placeInitialWindow(_collapsedHeight);
     runApp(const CodexTaskbarPanelApp());
     await WidgetsBinding.instance.endOfFrame;
-    await windowManager.setSize(const Size(_collapsedWidth, _collapsedHeight));
+    await windowManager.setSize(const Size(_panelWidth, _collapsedHeight));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAlwaysOnTop(true);
@@ -81,7 +83,7 @@ abstract final class CodexTaskbarPanelRuntime {
 
   static Future<void> resizeAndPlace(bool expanded) async {
     final height = expanded ? _expandedHeight : _collapsedHeight;
-    final width = expanded ? _expandedWidth : _collapsedWidth;
+    const width = _panelWidth;
     final previousSize = await windowManager.getSize();
     final previousPosition = await windowManager.getPosition();
     await windowManager.setSize(Size(width, height));
@@ -141,13 +143,13 @@ abstract final class CodexTaskbarPanelRuntime {
     final position = savedPosition == null
         ? codexTaskbarPanelPosition(
             workArea: workArea,
-            panelSize: Size(_collapsedWidth, height),
+            panelSize: Size(_panelWidth, height),
             height: height,
             inset: _screenInset,
           )
         : codexTaskbarPanelClampPosition(
             workArea: workArea,
-            panelSize: Size(_collapsedWidth, height),
+            panelSize: Size(_panelWidth, height),
             position: savedPosition,
             inset: _screenInset,
           );
@@ -412,10 +414,10 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         ? '--.--'
         : _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
     return Align(
-      alignment: Alignment.bottomCenter,
+      alignment: Alignment.center,
       child: SizedBox(
-        width: _collapsedWidth,
-        height: _collapsedHeight,
+        width: _pillWidth,
+        height: _pillHeight,
         child: _PanelSurface(
           popup: false,
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -445,12 +447,12 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
       children: [
         Positioned(
           top: 0,
-          left: 0,
-          width: _expandedWidth,
+          width: _popupWidth,
+          left: (_panelWidth - _popupWidth) / 2,
           height: _popupHeight,
           child: _PanelSurface(
             popup: true,
-            padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
+          padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
             onDrag: _startDragging,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -492,7 +494,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         ),
         Positioned(
           bottom: 0,
-          width: _collapsedWidth,
+          width: _panelWidth,
           height: _collapsedHeight,
           child: _buildPill(current),
         ),
@@ -516,23 +518,31 @@ class _PanelSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final surface = Container(
       width: double.infinity,
       height: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(popup ? 12 : 7)),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 24,
-            offset: Offset(0, 8),
-            color: Color(0x5C000000),
-          ),
-          BoxShadow(
-            blurRadius: 2,
-            spreadRadius: 1,
-            color: Color(0x3DFFFFFF),
-          ),
-        ],
+        boxShadow: popup
+            ? const [
+                BoxShadow(
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
+                  color: Color(0x5C000000),
+                ),
+                BoxShadow(
+                  blurRadius: 0,
+                  spreadRadius: 1,
+                  color: Color(0x3DFFFFFF),
+                ),
+              ]
+            : const [
+                BoxShadow(
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                  color: Color(0x380E2A3E),
+                ),
+              ],
       ),
       child: MouseRegion(
         cursor: onDrag == null ? MouseCursor.defer : SystemMouseCursors.grab,
@@ -566,6 +576,10 @@ class _PanelSurface extends StatelessWidget {
         ),
       ),
     );
+    return Opacity(
+      opacity: popup ? 0.8 : 1,
+      child: surface,
+    );
   }
 }
 
@@ -593,14 +607,14 @@ class _SummaryLine extends StatelessWidget {
           current: account != null && account!.isCurrent,
           color: const Color(0xff36556b),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 2),
         Expanded(
           child: Text.rich(
             TextSpan(
               style: const TextStyle(
-                color: Color(0xff182a36),
+                color: Color(0xf0182a36),
                 fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
               children: [
                 TextSpan(text: name),
@@ -653,8 +667,8 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 6,
-      height: 6,
+      width: 5,
+      height: 5,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
