@@ -9,14 +9,25 @@ void main() {
     expect(isCodexTaskbarPanel(const []), isFalse);
   });
 
-  test('places the panel above the work-area taskbar', () {
+  test('centers the panel above the work-area taskbar', () {
     final position = codexTaskbarPanelPosition(
       workArea: const Rect.fromLTWH(0, 0, 1920, 1080),
-      panelSize: const Size(620, 52),
-      height: 250,
+      panelSize: const Size(660, 40),
+      height: 178,
       inset: 12,
     );
 
-    expect(position, const Offset(1288, 818));
+    expect(position, const Offset(630, 890));
+  });
+
+  test('keeps a remembered position inside the work area', () {
+    final position = codexTaskbarPanelClampPosition(
+      workArea: const Rect.fromLTWH(0, 0, 1920, 1040),
+      panelSize: const Size(660, 178),
+      position: const Offset(1800, 1000),
+      inset: 12,
+    );
+
+    expect(position, const Offset(1248, 850));
   });
 }

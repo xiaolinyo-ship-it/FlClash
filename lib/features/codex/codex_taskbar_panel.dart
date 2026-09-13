@@ -1,7 +1,9 @@
 // coverage:ignore-file
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:fl_clash/features/codex/codex_account_switcher.dart';
@@ -12,10 +14,11 @@ import 'package:window_manager/window_manager.dart';
 
 const codexTaskbarPanelArgument = '--codex-panel';
 
-const _panelWidth = 620.0;
-const _collapsedHeight = 52.0;
-const _expandedHeight = 250.0;
+const _panelWidth = 660.0;
+const _collapsedHeight = 40.0;
+const _expandedHeight = 150.0;
 const _screenInset = 12.0;
+const _positionFileName = 'codex-taskbar-panel-position.json';
 
 bool isCodexTaskbarPanel(List<String> args) =>
     args.contains(codexTaskbarPanelArgument);
@@ -44,8 +47,9 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.setPreventClose(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
+    await windowManager.setMovable(true);
     await windowManager.setResizable(false);
-    await _placeWindow(_collapsedHeight);
+    await _placeInitialWindow(_collapsedHeight);
     await windowManager.show();
     await windowManager.setAlwaysOnTop(true);
     runApp(const CodexTaskbarPanelApp());
@@ -69,37 +73,135 @@ abstract final class CodexTaskbarPanelRuntime {
 
   static Future<void> resizeAndPlace(bool expanded) async {
     final height = expanded ? _expandedHeight : _collapsedHeight;
+    final previousSize = await windowManager.getSize();
+    final previousPosition = await windowManager.getPosition();
     await windowManager.setSize(Size(_panelWidth, height));
-    await _placeWindow(height);
+    final position = Offset(
+      previousPosition.dx,
+      previousPosition.dy + previousSize.height - height,
+    );
+    final workArea = await _workAreaFor(position);
+    if (workArea != null) {
+      await windowManager.setPosition(
+        codexTaskbarPanelClampPosition(
+          workArea: workArea,
+          panelSize: Size(_panelWidth, height),
+          position: position,
+          inset: _screenInset,
+        ),
+      );
+    }
   }
 
-  static Future<void> _placeWindow(double height) async {
+  static Future<void> rememberCurrentPosition() async {
+    try {
+      final position = await windowManager.getPosition();
+      final filePath = _positionFilePath();
+      if (filePath == null) {
+        return;
+      }
+      final file = File(filePath);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(
+        jsonEncode({'x': position.dx, 'y': position.dy}),
+        flush: true,
+      );
+    } catch (error) {
+      debugPrint('Codex taskbar panel position save failed: $error');
+    }
+  }
+
+  static Future<void> _placeInitialWindow(double height) async {
     final displays = await screenRetriever.getAllDisplays();
     if (displays.isEmpty) {
       return;
     }
+    final savedPosition = await _readSavedPosition();
     final display = displays.firstWhere(
-      (item) => item.visiblePosition != null,
+      (item) =>
+          item.visiblePosition != null &&
+          (savedPosition == null ||
+              _workArea(item, item.visiblePosition!).contains(savedPosition!)),
       orElse: () => displays.first,
     );
     final origin = display.visiblePosition;
     if (origin == null) {
       return;
     }
-    final workArea = Rect.fromLTWH(
-      origin.dx,
-      origin.dy,
-      display.size.width,
-      display.size.height,
-    );
+    final workArea = _workArea(display, origin);
+    final position = savedPosition == null
+        ? codexTaskbarPanelPosition(
+            workArea: workArea,
+            panelSize: Size(_panelWidth, height),
+            height: height,
+            inset: _screenInset,
+          )
+        : codexTaskbarPanelClampPosition(
+            workArea: workArea,
+            panelSize: Size(_panelWidth, height),
+            position: savedPosition,
+            inset: _screenInset,
+          );
     await windowManager.setPosition(
-      codexTaskbarPanelPosition(
-        workArea: workArea,
-        panelSize: const Size(_panelWidth, _collapsedHeight),
-        height: height,
-        inset: _screenInset,
-      ),
+      position,
     );
+  }
+
+  static String? _positionFilePath() {
+    final appData = Platform.environment['APPDATA'];
+    if (appData == null || appData.isEmpty) {
+      return null;
+    }
+    return path.join(appData, 'FlClash', _positionFileName);
+  }
+
+  static Future<Offset?> _readSavedPosition() async {
+    final filePath = _positionFilePath();
+    if (filePath == null) {
+      return null;
+    }
+    try {
+      final value = jsonDecode(await File(filePath).readAsString());
+      if (value is! Map) {
+        return null;
+      }
+      final x = (value['x'] as num?)?.toDouble();
+      final y = (value['y'] as num?)?.toDouble();
+      if (x == null || y == null || !x.isFinite || !y.isFinite) {
+        return null;
+      }
+      return Offset(x, y);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<Rect?> _workAreaFor(Offset position) async {
+    final displays = await screenRetriever.getAllDisplays();
+    if (displays.isEmpty) {
+      return null;
+    }
+    for (final display in displays) {
+      final origin = display.visiblePosition;
+      if (origin == null) {
+        continue;
+      }
+      final workArea = _workArea(display, origin);
+      if (workArea.contains(position)) {
+        return workArea;
+      }
+    }
+    final display = displays.firstWhere(
+      (item) => item.visiblePosition != null,
+      orElse: () => displays.first,
+    );
+    final origin = display.visiblePosition;
+    return origin == null ? null : _workArea(display, origin);
+  }
+
+  static Rect _workArea(Display display, Offset origin) {
+    final size = display.visibleSize ?? display.size;
+    return Rect.fromLTWH(origin.dx, origin.dy, size.width, size.height);
   }
 
   static Future<bool> _acquireLock() async {
@@ -132,8 +234,25 @@ Offset codexTaskbarPanelPosition({
   double inset = _screenInset,
 }) {
   return Offset(
-    workArea.right - panelSize.width - inset,
+    workArea.left + (workArea.width - panelSize.width) / 2,
     workArea.bottom - height - inset,
+  );
+}
+
+@visibleForTesting
+Offset codexTaskbarPanelClampPosition({
+  required Rect workArea,
+  required Size panelSize,
+  required Offset position,
+  double inset = _screenInset,
+}) {
+  final minX = workArea.left + inset;
+  final maxX = workArea.right - panelSize.width - inset;
+  final minY = workArea.top + inset;
+  final maxY = workArea.bottom - panelSize.height - inset;
+  return Offset(
+    position.dx.clamp(minX, maxX).toDouble(),
+    position.dy.clamp(minY, maxY).toDouble(),
   );
 }
 
@@ -151,6 +270,7 @@ class CodexTaskbarPanelApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Segoe UI',
         colorScheme: scheme,
         scaffoldBackgroundColor: Colors.transparent,
       ),
@@ -188,6 +308,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   Timer? _refreshTimer;
   bool _expanded = false;
   bool _loading = false;
+  bool _dragging = false;
 
   @override
   void initState() {
@@ -240,6 +361,20 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     await CodexTaskbarPanelRuntime.resizeAndPlace(expanded);
   }
 
+  Future<void> _startDragging() async {
+    if (mounted) {
+      setState(() => _dragging = true);
+    }
+    try {
+      await windowManager.startDragging();
+    } finally {
+      if (mounted) {
+        setState(() => _dragging = false);
+      }
+      await CodexTaskbarPanelRuntime.rememberCurrentPosition();
+    }
+  }
+
   Future<void> _switchAccount(CodexAccountCardData account) async {
     if (_switchingId != null) {
       return;
@@ -285,7 +420,11 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     }
     return MouseRegion(
       onEnter: (_) => _setExpanded(true),
-      onExit: (_) => _setExpanded(false),
+      onExit: (_) {
+        if (!_dragging) {
+          _setExpanded(false);
+        }
+      },
       child: Material(
         color: Colors.transparent,
         child: _expanded
@@ -296,77 +435,43 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   }
 
   Widget _buildCollapsed(BuildContext context, CodexAccountCardData? current) {
-    final scheme = Theme.of(context).colorScheme;
     final fiveHour = current?.fiveHour?.remainingPercent;
     final weekly = current?.weekly?.remainingPercent;
     final reset = _shortDate(
       current?.weekly?.resetAt ?? current?.fiveHour?.resetAt,
     );
     return _PanelSurface(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Row(
-        children: [
-          Icon(Icons.code, size: 18, color: scheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              current == null
-                  ? 'Codex  当前账户未确认'
-                  : '${current.displayName}  5h ${_percent(fiveHour)}  W ${_percent(weekly)}  $reset',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (_loading)
-            const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      onDrag: _startDragging,
+      child: _SummaryLine(
+        account: current,
+        fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
+        weekly: current?.hasDataAnomaly == true ? null : weekly,
+        reset: reset,
+        loading: _loading,
       ),
     );
   }
 
   Widget _buildExpanded(BuildContext context, CodexAccountSnapshot? snapshot) {
-    final scheme = Theme.of(context).colorScheme;
     final failure = _failure;
     final accounts = snapshot?.accounts ?? const <CodexAccountCardData>[];
     return _PanelSurface(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      onDrag: _startDragging,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(Icons.code, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Codex 账户',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: '刷新快照',
-                onPressed: _loading ? null : _load,
-                icon: const Icon(Icons.refresh, size: 18),
-              ),
-            ],
-          ),
-          if (failure != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _failureText(failure),
-                style: TextStyle(color: scheme.error, fontSize: 11),
-              ),
+          if (failure != null || _message != null)
+            _PanelToolbar(
+              failure: failure == null ? null : _failureText(failure),
+              message: _message,
+              loading: _loading,
+              onRefresh: _loading ? null : _load,
             ),
           if (accounts.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.fromLTRB(8, 8, 8, 6),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text('暂无可显示的账户数据'),
@@ -381,22 +486,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
                 switching: _switchingId == account.id,
                 onTap: () => _switchAccount(account),
               ),
-          if (_message != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  _message!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -406,25 +495,218 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
 class _PanelSurface extends StatelessWidget {
   final EdgeInsets padding;
   final Widget child;
+  final Future<void> Function()? onDrag;
 
-  const _PanelSurface({required this.padding, required this.child});
+  const _PanelSurface({required this.padding, required this.child, this.onDrag});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       height: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer.withValues(alpha: .94),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: scheme.outlineVariant),
-        boxShadow: const [
-          BoxShadow(blurRadius: 18, spreadRadius: 1, color: Color(0x66000000)),
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 20,
+            spreadRadius: 1,
+            color: Color(0x73000000),
+          ),
         ],
       ),
-      child: child,
+      child: MouseRegion(
+        cursor: onDrag == null
+            ? MouseCursor.defer
+            : SystemMouseCursors.grab,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: onDrag == null ? null : (_) => unawaited(onDrag!()),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(20)),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                padding: padding,
+                decoration: BoxDecoration(
+                  color: const Color(0xC4171F2B),
+                  borderRadius: const BorderRadius.all(Radius.circular(20)),
+                  border: Border.all(
+                    color: const Color(0x8AFFFFFF),
+                    width: 1.0,
+                  ),
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryLine extends StatelessWidget {
+  final CodexAccountCardData? account;
+  final double? fiveHour;
+  final double? weekly;
+  final String reset;
+  final bool loading;
+
+  const _SummaryLine({
+    required this.account,
+    required this.fiveHour,
+    required this.weekly,
+    required this.reset,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = account?.displayName ?? 'Codex 账户未确认';
+    return Row(
+      children: [
+        _StatusDot(current: account != null && account!.isCurrent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              style: const TextStyle(
+                color: Color(0xffe3e5e8),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              children: [
+                TextSpan(text: name),
+                const TextSpan(text: '   5h '),
+                TextSpan(
+                  text: _percent(fiveHour),
+                  style: const TextStyle(color: Color(0xffb7e4bf)),
+                ),
+                const TextSpan(text: '  |  W '),
+                TextSpan(
+                  text: _percent(weekly),
+                  style: const TextStyle(color: Color(0xffb7e4bf)),
+                ),
+                TextSpan(
+                  text: '  |  $reset',
+                  style: const TextStyle(color: Color(0xffc8cbd0)),
+                ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.7,
+                color: Color(0xffd9dde2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PanelToolbar extends StatelessWidget {
+  final String? failure;
+  final String? message;
+  final bool loading;
+  final VoidCallback? onRefresh;
+
+  const _PanelToolbar({
+    required this.failure,
+    required this.message,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = failure ?? message;
+    return SizedBox(
+      height: 20,
+      child: Row(
+        children: [
+          if (text != null)
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: failure == null
+                      ? const Color(0xffc8cbd0)
+                      : const Color(0xffffb4ab),
+                  fontSize: 10,
+                ),
+              ),
+            )
+          else
+            const Spacer(),
+          if (loading)
+            const SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.7,
+                color: Color(0xffd9dde2),
+              ),
+            ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 22, height: 20),
+            tooltip: '刷新额度',
+            onPressed: onRefresh,
+            icon: const Icon(
+              Icons.refresh,
+              size: 15,
+              color: Color(0xffc8cbd0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  final bool current;
+  final Color color;
+
+  const _StatusDot({
+    required this.current,
+    this.color = const Color(0xffa9adb3),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 9,
+      height: 9,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: current
+            ? Border.all(color: const Color(0xffe7eaee), width: 1.2)
+            : null,
+        boxShadow: current
+            ? const [
+                BoxShadow(
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                  color: Color(0x66E7EAEE),
+                ),
+              ]
+            : null,
+      ),
     );
   }
 }
@@ -446,60 +728,126 @@ class _AccountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final status = missing ? '读取失败' : _status(account.statusAt(DateTime.now()));
-    final statusColor = missing || account.hasDataAnomaly
-        ? scheme.error
-        : scheme.primary;
     final current = currentConfirmed && account.isCurrent;
+    final statusColor = missing || account.hasDataAnomaly
+        ? const Color(0xffffb4ab)
+        : status == '已用尽'
+            ? const Color(0xffff8a80)
+            : const Color(0xffe7c48c);
+    final showStatus = status != '正常';
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Material(
-        color: scheme.surface.withValues(alpha: .55),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: missing || switching ? null : onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.circle,
-                  size: 9,
-                  color: current ? scheme.primary : scheme.outline,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    current
-                        ? '当前  ${account.displayName}'
-                        : account.displayName,
+      child: Container(
+        decoration: BoxDecoration(
+          color: current
+              ? const Color(0x665E6570)
+              : const Color(0x4D5A606A),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: current
+                ? const Color(0xB8E1E5EA)
+                : const Color(0x2DE1E5EA),
+            width: current ? 1.1 : .7,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(13),
+          child: InkWell(
+            onTap: missing || switching ? null : onTap,
+            borderRadius: BorderRadius.circular(13),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              child: Row(
+                children: [
+                  _StatusDot(
+                    current: current,
+                    color: missing || account.hasDataAnomaly
+                        ? const Color(0xffff8f85)
+                        : current
+                            ? const Color(0xffe7eaee)
+                            : const Color(0xffa9adb3),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Semantics(
+                      label: current ? '当前账户 ${account.displayName}' : null,
+                      child: Text(
+                        account.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xffe3e5e8),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(
+                        color: Color(0xffd0d3d8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      children: [
+                        const TextSpan(text: '5h '),
+                        TextSpan(
+                          text: _percent(
+                            account.hasDataAnomaly
+                                ? null
+                                : account.fiveHour?.remainingPercent,
+                          ),
+                          style: const TextStyle(color: Color(0xffb7e4bf)),
+                        ),
+                        const TextSpan(text: '  |  W '),
+                        TextSpan(
+                          text: _percent(
+                            account.hasDataAnomaly
+                                ? null
+                                : account.weekly?.remainingPercent,
+                          ),
+                          style: const TextStyle(color: Color(0xffb7e4bf)),
+                        ),
+                        TextSpan(
+                          text:
+                              '  |  ${_shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
+                          style: const TextStyle(color: Color(0xffc8cbd0)),
+                        ),
+                      ],
+                    ),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.clip,
                   ),
-                ),
-                Text(
-                  '5h ${_percent(account.fiveHour?.remainingPercent)}  W ${_percent(account.weekly?.remainingPercent)}  ${_shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (switching)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Text(
-                    status,
-                    style: TextStyle(color: statusColor, fontSize: 11),
-                  ),
-              ],
+                  if (switching)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 9),
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.8,
+                          color: Color(0xffe7eaee),
+                        ),
+                      ),
+                    )
+                  else if (showStatus)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 9),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
