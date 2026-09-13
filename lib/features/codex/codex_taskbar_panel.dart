@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:fl_clash/features/codex/codex_account_switcher.dart';
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
 import 'package:screen_retriever/screen_retriever.dart';
@@ -70,7 +69,7 @@ abstract final class CodexTaskbarPanelRuntime {
 
   static Future<void> resizeAndPlace(bool expanded) async {
     final height = expanded ? _expandedHeight : _collapsedHeight;
-    await windowManager.setSize(const Size(_panelWidth, height));
+    await windowManager.setSize(Size(_panelWidth, height));
     await _placeWindow(height);
   }
 
@@ -228,7 +227,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     setState(() {
       _snapshot = result.snapshot ?? _snapshot;
       _failure = result.failure;
-      _missingAccountIds = result.missingAccountIds;
+      _missingAccountIds = result.missingAccountIds.toSet();
       _loading = false;
     });
   }
