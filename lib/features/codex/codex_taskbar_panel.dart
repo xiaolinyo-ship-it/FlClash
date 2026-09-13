@@ -283,15 +283,12 @@ class CodexTaskbarPanel extends StatefulWidget {
   final CodexAccountSnapshotReader? reader;
   final CodexAccountSwitcher? switcher;
   final DateTime Function()? clock;
-  @visibleForTesting
-  final bool initiallyExpanded;
 
   const CodexTaskbarPanel({
     super.key,
     @visibleForTesting this.reader,
     @visibleForTesting this.switcher,
     @visibleForTesting this.clock,
-    @visibleForTesting this.initiallyExpanded = false,
   });
 
   @override
@@ -316,7 +313,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   @override
   void initState() {
     super.initState();
-    _expanded = widget.initiallyExpanded;
     _reader = widget.reader ?? CodexAccountSnapshotReader(clock: widget.clock);
     _switcher = widget.switcher ?? CodexAccountSwitcher();
     _load();
