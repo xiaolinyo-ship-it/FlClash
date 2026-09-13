@@ -49,6 +49,9 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.ensureInitialized();
     final initialHeight = preview ? _expandedHeight : _collapsedHeight;
     final captureKey = preview ? GlobalKey() : null;
+    final previewReader = preview
+        ? CodexAccountSnapshotReader(snapshotPath: _previewSnapshotPath())
+        : null;
     final options = WindowOptions(
       size: Size(_panelWidth, initialHeight),
       minimumSize: const Size(_panelWidth, _collapsedHeight),
@@ -69,6 +72,7 @@ abstract final class CodexTaskbarPanelRuntime {
       CodexTaskbarPanelApp(
         initialExpanded: preview,
         captureKey: captureKey,
+        reader: previewReader,
       ),
     );
     await WidgetsBinding.instance.endOfFrame;
@@ -78,8 +82,17 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.setAlwaysOnTop(true);
     if (preview && captureKey != null) {
       await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
       await _capturePreview(captureKey);
     }
+  }
+
+  static String? _previewSnapshotPath() {
+    final appData = Platform.environment['APPDATA'];
+    if (appData == null || appData.isEmpty) {
+      return null;
+    }
+    return path.join(appData, 'CodexBar', 'codex-accounts', 'snapshots.json');
   }
 
   static Future<void> _capturePreview(GlobalKey key) async {
@@ -315,11 +328,13 @@ Offset codexTaskbarPanelClampPosition({
 class CodexTaskbarPanelApp extends StatelessWidget {
   final bool initialExpanded;
   final GlobalKey? captureKey;
+  final CodexAccountSnapshotReader? reader;
 
   const CodexTaskbarPanelApp({
     super.key,
     this.initialExpanded = false,
     this.captureKey,
+    this.reader,
   });
 
   @override
@@ -340,6 +355,7 @@ class CodexTaskbarPanelApp extends StatelessWidget {
       home: CodexTaskbarPanel(
         initialExpanded: initialExpanded,
         captureKey: captureKey,
+        reader: reader,
       ),
     );
   }
