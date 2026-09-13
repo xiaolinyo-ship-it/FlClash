@@ -135,8 +135,8 @@ abstract final class CodexTaskbarPanelRuntime {
     final workArea = _workArea(display, origin);
     final position = savedPosition == null
         ? codexTaskbarPanelPosition(
-        workArea: workArea,
-        panelSize: Size(_collapsedWidth, height),
+            workArea: workArea,
+            panelSize: Size(_collapsedWidth, height),
             height: height,
             inset: _screenInset,
           )
@@ -146,9 +146,7 @@ abstract final class CodexTaskbarPanelRuntime {
             position: savedPosition,
             inset: _screenInset,
           );
-    await windowManager.setPosition(
-      position,
-    );
+    await windowManager.setPosition(position);
   }
 
   static String? _positionFilePath() {
@@ -393,7 +391,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         color: Colors.transparent,
         child: _expanded
             ? _buildExpanded(context, snapshot)
-        : _buildCollapsed(context, current),
+            : _buildCollapsed(context, current),
       ),
     );
   }
@@ -482,17 +480,11 @@ class _PanelSurface extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(popup ? 20 : 14)),
         boxShadow: const [
-          BoxShadow(
-            blurRadius: 20,
-            spreadRadius: 1,
-            color: Color(0x73000000),
-          ),
+          BoxShadow(blurRadius: 20, spreadRadius: 1, color: Color(0x73000000)),
         ],
       ),
       child: MouseRegion(
-        cursor: onDrag == null
-            ? MouseCursor.defer
-            : SystemMouseCursors.grab,
+        cursor: onDrag == null ? MouseCursor.defer : SystemMouseCursors.grab,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onPanStart: onDrag == null ? null : (_) => unawaited(onDrag!()),
@@ -647,11 +639,7 @@ class _PanelToolbar extends StatelessWidget {
             constraints: const BoxConstraints.tightFor(width: 22, height: 20),
             tooltip: '刷新额度',
             onPressed: onRefresh,
-            icon: const Icon(
-              Icons.refresh,
-              size: 15,
-              color: Color(0xffc8cbd0),
-            ),
+            icon: const Icon(Icons.refresh, size: 15, color: Color(0xffc8cbd0)),
           ),
         ],
       ),
@@ -711,21 +699,17 @@ class _AccountRow extends StatelessWidget {
     final statusColor = missing || account.hasDataAnomaly
         ? const Color(0xffffcf8a)
         : status == '已用尽'
-            ? const Color(0xffffb4b4)
-            : const Color(0xff9be8b5);
+        ? const Color(0xffffb4b4)
+        : const Color(0xff9be8b5);
     final showStatus = status != '正常';
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Container(
         decoration: BoxDecoration(
-          color: current
-              ? const Color(0x1A74D69B)
-              : const Color(0x0EFFFFFF),
+          color: current ? const Color(0x1A74D69B) : const Color(0x0EFFFFFF),
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
-            color: current
-                ? const Color(0x8074D69B)
-                : const Color(0x00FFFFFF),
+            color: current ? const Color(0x8074D69B) : const Color(0x00FFFFFF),
             width: current ? 1.0 : .5,
           ),
         ),
@@ -738,8 +722,8 @@ class _AccountRow extends StatelessWidget {
                 color: missing || account.hasDataAnomaly
                     ? const Color(0xffffcf8a)
                     : current
-                        ? const Color(0xff74d69b)
-                        : const Color(0x8AFFFFFF),
+                    ? const Color(0xff74d69b)
+                    : const Color(0x8AFFFFFF),
               ),
               const SizedBox(width: 8),
               Expanded(
