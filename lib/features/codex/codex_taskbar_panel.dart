@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:fl_clash/core/desktop/taskbar_window_guard.dart';
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
@@ -81,6 +82,7 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAlwaysOnTop(true);
+    TaskbarWindowGuard.start();
     if (preview && captureKey != null) {
       await WidgetsBinding.instance.endOfFrame;
       await Future<void>.delayed(const Duration(milliseconds: 250));
