@@ -611,63 +611,6 @@ class _SummaryLine extends StatelessWidget {
   }
 }
 
-class _PanelToolbar extends StatelessWidget {
-  final String? failure;
-  final bool loading;
-  final VoidCallback? onRefresh;
-
-  const _PanelToolbar({
-    required this.failure,
-    required this.loading,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final text = failure;
-    return SizedBox(
-      height: 20,
-      child: Row(
-        children: [
-          if (text != null)
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: failure == null
-                      ? const Color(0xffc8cbd0)
-                      : const Color(0xffffb4ab),
-                  fontSize: 8,
-                ),
-              ),
-            )
-          else
-            const Spacer(),
-          if (loading)
-            const SizedBox(
-              width: 13,
-              height: 13,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.7,
-                color: Color(0xffd9dde2),
-              ),
-            ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 22, height: 20),
-            tooltip: '刷新额度',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh, size: 15, color: Color(0xffc8cbd0)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _StatusDot extends StatelessWidget {
   final bool current;
   final Color color;
