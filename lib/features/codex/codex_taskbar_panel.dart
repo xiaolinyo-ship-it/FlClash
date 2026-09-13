@@ -730,85 +730,84 @@ class _AccountRow extends StatelessWidget {
           ),
         ),
         child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-              child: Row(
-                children: [
-                  _StatusDot(
-                    current: current,
-                    color: missing || account.hasDataAnomaly
-                        ? const Color(0xffffcf8a)
-                        : current
-                            ? const Color(0xff74d69b)
-                            : const Color(0x8AFFFFFF),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Semantics(
-                      label: current ? '当前账户 ${account.displayName}' : null,
-                      child: Text(
-                        account.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xffe3e5e8),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text.rich(
-                    TextSpan(
-                      style: const TextStyle(
-                        color: Color(0xffd0d3d8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      children: [
-                        const TextSpan(text: '5h '),
-                        TextSpan(
-                          text: _percent(
-                            account.hasDataAnomaly
-                                ? null
-                                : account.fiveHour?.remainingPercent,
-                          ),
-                          style: const TextStyle(color: Color(0xffb7e4bf)),
-                        ),
-                        const TextSpan(text: '  |  W '),
-                        TextSpan(
-                          text: _percent(
-                            account.hasDataAnomaly
-                                ? null
-                                : account.weekly?.remainingPercent,
-                          ),
-                          style: const TextStyle(color: Color(0xffb7e4bf)),
-                        ),
-                        TextSpan(
-                          text:
-                              '  |  ${account.hasDataAnomaly ? '--.--' : _shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
-                          style: const TextStyle(color: Color(0xffc8cbd0)),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                  ),
-                  if (showStatus)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 9),
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          child: Row(
+            children: [
+              _StatusDot(
+                current: current,
+                color: missing || account.hasDataAnomaly
+                    ? const Color(0xffffcf8a)
+                    : current
+                        ? const Color(0xff74d69b)
+                        : const Color(0x8AFFFFFF),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Semantics(
+                  label: current ? '当前账户 ${account.displayName}' : null,
+                  child: Text(
+                    account.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xffe3e5e8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    color: Color(0xffd0d3d8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  children: [
+                    const TextSpan(text: '5h '),
+                    TextSpan(
+                      text: _percent(
+                        account.hasDataAnomaly
+                            ? null
+                            : account.fiveHour?.remainingPercent,
+                      ),
+                      style: const TextStyle(color: Color(0xffb7e4bf)),
+                    ),
+                    const TextSpan(text: '  |  W '),
+                    TextSpan(
+                      text: _percent(
+                        account.hasDataAnomaly
+                            ? null
+                            : account.weekly?.remainingPercent,
+                      ),
+                      style: const TextStyle(color: Color(0xffb7e4bf)),
+                    ),
+                    TextSpan(
+                      text:
+                          '  |  ${account.hasDataAnomaly ? '--.--' : _shortDate(account.weekly?.resetAt ?? account.fiveHour?.resetAt)}',
+                      style: const TextStyle(color: Color(0xffc8cbd0)),
+                    ),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+              ),
+              if (showStatus)
+                Padding(
+                  padding: const EdgeInsets.only(left: 9),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
