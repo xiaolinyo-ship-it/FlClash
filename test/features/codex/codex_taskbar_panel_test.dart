@@ -6,6 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('recognizes the isolated taskbar panel entrypoint', () {
     expect(isCodexTaskbarPanel([codexTaskbarPanelArgument]), isTrue);
+    expect(
+      isCodexTaskbarPanel([codexTaskbarPanelPreviewArgument]),
+      isTrue,
+    );
+    expect(
+      isCodexTaskbarPanelPreview([codexTaskbarPanelPreviewArgument]),
+      isTrue,
+    );
     expect(isCodexTaskbarPanel(const []), isFalse);
   });
 

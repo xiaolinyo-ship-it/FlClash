@@ -19,7 +19,9 @@ void main(List<String> args) {
       WidgetsFlutterBinding.ensureInitialized();
       // coverage:ignore-start
       if (isCodexTaskbarPanel(args)) {
-        await CodexTaskbarPanelRuntime.run();
+        await CodexTaskbarPanelRuntime.run(
+          preview: isCodexTaskbarPanelPreview(args),
+        );
         return;
       }
       // coverage:ignore-end

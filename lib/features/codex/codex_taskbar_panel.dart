@@ -12,6 +12,7 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 const codexTaskbarPanelArgument = '--codex-panel';
+const codexTaskbarPanelPreviewArgument = '--codex-panel-preview';
 
 // These are logical pixels.  CodexBar uses a transparent 360x36 FloatBar
 // window and a 324x120 account popup.  The visible taskbar pill is narrower
@@ -28,12 +29,16 @@ const _screenInset = 12.0;
 const _positionFileName = 'codex-taskbar-panel-position.json';
 
 bool isCodexTaskbarPanel(List<String> args) =>
-    args.contains(codexTaskbarPanelArgument);
+    args.contains(codexTaskbarPanelArgument) ||
+    args.contains(codexTaskbarPanelPreviewArgument);
+
+bool isCodexTaskbarPanelPreview(List<String> args) =>
+    args.contains(codexTaskbarPanelPreviewArgument);
 
 abstract final class CodexTaskbarPanelRuntime {
   static RandomAccessFile? _lockFile;
 
-  static Future<void> run() async {
+  static Future<void> run({bool preview = false}) async {
     if (!Platform.isWindows) {
       return;
     }
@@ -41,8 +46,10 @@ abstract final class CodexTaskbarPanelRuntime {
       return;
     }
     await windowManager.ensureInitialized();
-    const options = WindowOptions(
-      size: Size(_panelWidth, _collapsedHeight),
+    final initialHeight = preview ? _expandedHeight : _collapsedHeight;
+    final captureKey = preview ? GlobalKey() : null;
+    final options = WindowOptions(
+      size: Size(_panelWidth, initialHeight),
       minimumSize: Size(_panelWidth, _collapsedHeight),
       maximumSize: Size(_panelWidth, _expandedHeight),
       center: false,
@@ -56,13 +63,49 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
     await windowManager.setResizable(false);
-    await _placeInitialWindow(_collapsedHeight);
-    runApp(const CodexTaskbarPanelApp());
+    await _placeInitialWindow(initialHeight);
+    runApp(
+      CodexTaskbarPanelApp(
+        initialExpanded: preview,
+        captureKey: captureKey,
+      ),
+    );
     await WidgetsBinding.instance.endOfFrame;
-    await windowManager.setSize(const Size(_panelWidth, _collapsedHeight));
+    await windowManager.setSize(Size(_panelWidth, initialHeight));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setAlwaysOnTop(true);
+    if (preview && captureKey != null) {
+      await WidgetsBinding.instance.endOfFrame;
+      await _capturePreview(captureKey);
+    }
+  }
+
+  static Future<void> _capturePreview(GlobalKey key) async {
+    final context = key.currentContext;
+    final renderObject = context?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) {
+      return;
+    }
+    final pixelRatio = MediaQuery.maybeOf(context!)?.devicePixelRatio ?? 1;
+    final image = await renderObject.toImage(pixelRatio: pixelRatio);
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      final output = Platform.environment['FLCLASH_CODEX_PANEL_CAPTURE_PATH'];
+      if (data == null || output == null || output.isEmpty) {
+        return;
+      }
+      final file = File(output);
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(
+        data.buffer.asUint8List(),
+        flush: true,
+      );
+    } catch (error) {
+      debugPrint('Codex taskbar panel preview capture failed: $error');
+    } finally {
+      image.dispose();
+    }
   }
 
   static Future<bool> ensureStarted() async {
@@ -266,7 +309,14 @@ Offset codexTaskbarPanelClampPosition({
 }
 
 class CodexTaskbarPanelApp extends StatelessWidget {
-  const CodexTaskbarPanelApp({super.key});
+  final bool initialExpanded;
+  final GlobalKey? captureKey;
+
+  const CodexTaskbarPanelApp({
+    super.key,
+    this.initialExpanded = false,
+    this.captureKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +333,10 @@ class CodexTaskbarPanelApp extends StatelessWidget {
         colorScheme: scheme,
         scaffoldBackgroundColor: Colors.transparent,
       ),
-      home: const CodexTaskbarPanel(),
+      home: CodexTaskbarPanel(
+        initialExpanded: initialExpanded,
+        captureKey: captureKey,
+      ),
     );
   }
 }
@@ -291,11 +344,15 @@ class CodexTaskbarPanelApp extends StatelessWidget {
 class CodexTaskbarPanel extends StatefulWidget {
   final CodexAccountSnapshotReader? reader;
   final DateTime Function()? clock;
+  final bool initialExpanded;
+  final GlobalKey? captureKey;
 
   const CodexTaskbarPanel({
     super.key,
     @visibleForTesting this.reader,
     @visibleForTesting this.clock,
+    this.initialExpanded = false,
+    this.captureKey,
   });
 
   @override
@@ -310,7 +367,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   Set<String> _missingAccountIds = {};
   CodexSnapshotReadFailure? _failure;
   Timer? _refreshTimer;
-  bool _expanded = false;
+  late bool _expanded = widget.initialExpanded;
   bool _loading = false;
   bool _dragging = false;
 
@@ -387,18 +444,21 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
           .where((account) => account.isCurrent)
           .firstOrNull;
     }
-    return MouseRegion(
-      onEnter: (_) => _setExpanded(true),
-      onExit: (_) {
-        if (!_dragging) {
-          _setExpanded(false);
-        }
-      },
-      child: Material(
-        color: Colors.transparent,
-        child: _expanded
-            ? _buildExpanded(context, snapshot)
-            : _buildCollapsed(context, current),
+    return RepaintBoundary(
+      key: widget.captureKey,
+      child: MouseRegion(
+        onEnter: (_) => _setExpanded(true),
+        onExit: (_) {
+          if (!_dragging) {
+            _setExpanded(false);
+          }
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: _expanded
+              ? _buildExpanded(context, snapshot)
+              : _buildCollapsed(context, current),
+        ),
       ),
     );
   }
