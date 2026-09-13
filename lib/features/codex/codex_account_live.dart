@@ -927,7 +927,8 @@ class _CodexAuthRecord {
     required this.lastRefresh,
   });
 
-  String get stableId => registeredId ?? providerAccountId ?? path.basename(home.path);
+  String get stableId =>
+      registeredId ?? providerAccountId ?? path.basename(home.path);
 
   String get identityKey =>
       (providerAccountId ?? email ?? home.path).toLowerCase();

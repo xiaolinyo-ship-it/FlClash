@@ -437,7 +437,8 @@ class CodexAccountSnapshotReader {
 
     final accounts = accountsById.values.toList()
       ..sort((left, right) => left.id.compareTo(right.id));
-    final missingCount = liveResult.missingAccountCount > missingAccountIds.length
+    final missingCount =
+        liveResult.missingAccountCount > missingAccountIds.length
         ? liveResult.missingAccountCount
         : missingAccountIds.length;
     return CodexSnapshotReadResult(
@@ -445,8 +446,7 @@ class CodexAccountSnapshotReader {
         accounts: accounts,
         readAt: liveSnapshot.readAt,
         source: liveSnapshot.source,
-        currentConfirmed:
-            liveSnapshot.currentConfirmed && !usedHistoricalData,
+        currentConfirmed: liveSnapshot.currentConfirmed && !usedHistoricalData,
       ),
       failure: liveResult.failure,
       fromCache: liveResult.fromCache || usedHistoricalData,

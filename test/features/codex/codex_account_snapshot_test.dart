@@ -353,85 +353,87 @@ void main() {
     );
   });
 
-  test('keeps all stable slots after a login switch and restores the missing slot',
-      () async {
-    final temp = await Directory.systemTemp.createTemp(
-      'flclash-codex-slot-recovery-',
-    );
-    final cachePath = '${temp.path}/codex-accounts-cache.json';
-    addTearDown(() => temp.delete(recursive: true));
+  test(
+    'keeps all stable slots after a login switch and restores the missing slot',
+    () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'flclash-codex-slot-recovery-',
+      );
+      final cachePath = '${temp.path}/codex-accounts-cache.json';
+      addTearDown(() => temp.delete(recursive: true));
 
-    final historical = jsonEncode({
-      'snapshots': {
-        'snapshot-a': _account(
-          email: 'alpha@example.com',
-          providerAccountId: 'slot-a',
-          primary: _window(18000, 10, 90),
-          secondary: _window(604800, 20, 80),
-        ),
-        'snapshot-b': _account(
-          email: 'beta@example.com',
-          providerAccountId: 'slot-b',
-          primary: _window(18000, 20, 80),
-          secondary: _window(604800, 30, 70),
-        ),
-        'snapshot-c': _account(
-          email: 'gamma@example.com',
-          providerAccountId: 'slot-c',
-          primary: _window(18000, 30, 70),
-          secondary: _window(604800, 40, 60),
-        ),
-      },
-    });
-    final liveSnapshot = CodexAccountSnapshot(
-      accounts: [
-        _liveAccount(
-          id: 'slot-a',
-          providerAccountId: 'slot-a',
-          email: 'alpha@example.com',
-        ),
-        _liveAccount(
-          id: 'slot-b',
-          providerAccountId: 'slot-b',
-          email: 'beta@example.com',
-        ),
-        // The third registered home now contains slot-b after switching.
-        _liveAccount(
-          id: 'slot-c',
-          providerAccountId: 'slot-b',
-          email: 'beta@example.com',
-        ),
-      ],
-      readAt: DateTime(2026, 9, 13, 10),
-      source: CodexSnapshotSource.live,
-      currentConfirmed: true,
-    );
-
-    final result = await CodexAccountSnapshotReader(
-      cachePath: cachePath,
-      readText: () async => historical,
-      liveReader: () async => CodexSnapshotReadResult(
-        snapshot: liveSnapshot,
-        failure: null,
+      final historical = jsonEncode({
+        'snapshots': {
+          'snapshot-a': _account(
+            email: 'alpha@example.com',
+            providerAccountId: 'slot-a',
+            primary: _window(18000, 10, 90),
+            secondary: _window(604800, 20, 80),
+          ),
+          'snapshot-b': _account(
+            email: 'beta@example.com',
+            providerAccountId: 'slot-b',
+            primary: _window(18000, 20, 80),
+            secondary: _window(604800, 30, 70),
+          ),
+          'snapshot-c': _account(
+            email: 'gamma@example.com',
+            providerAccountId: 'slot-c',
+            primary: _window(18000, 30, 70),
+            secondary: _window(604800, 40, 60),
+          ),
+        },
+      });
+      final liveSnapshot = CodexAccountSnapshot(
+        accounts: [
+          _liveAccount(
+            id: 'slot-a',
+            providerAccountId: 'slot-a',
+            email: 'alpha@example.com',
+          ),
+          _liveAccount(
+            id: 'slot-b',
+            providerAccountId: 'slot-b',
+            email: 'beta@example.com',
+          ),
+          // The third registered home now contains slot-b after switching.
+          _liveAccount(
+            id: 'slot-c',
+            providerAccountId: 'slot-b',
+            email: 'beta@example.com',
+          ),
+        ],
+        readAt: DateTime(2026, 9, 13, 10),
         source: CodexSnapshotSource.live,
-      ),
-    ).read();
+        currentConfirmed: true,
+      );
 
-    expect(result.snapshot?.accounts.map((account) => account.id), [
-      'slot-a',
-      'slot-b',
-      'slot-c',
-    ]);
-    final recovered = result.snapshot!.accounts.singleWhere(
-      (account) => account.id == 'slot-c',
-    );
-    expect(recovered.displayName, 'ga***@example.com');
-    expect(recovered.weekly?.usedPercent, 40);
-    expect(result.missingAccountIds, ['slot-c']);
-    expect(result.missingAccountCount, 1);
-    expect(result.snapshot?.currentConfirmed, isFalse);
+      final result = await CodexAccountSnapshotReader(
+        cachePath: cachePath,
+        readText: () async => historical,
+        liveReader: () async => CodexSnapshotReadResult(
+          snapshot: liveSnapshot,
+          failure: null,
+          source: CodexSnapshotSource.live,
+        ),
+      ).read();
 
-    final cached = jsonDecode(await File(cachePath).readAsString()) as Map;
-    expect((cached['accounts'] as List).length, 3);
-  });
+      expect(result.snapshot?.accounts.map((account) => account.id), [
+        'slot-a',
+        'slot-b',
+        'slot-c',
+      ]);
+      final recovered = result.snapshot!.accounts.singleWhere(
+        (account) => account.id == 'slot-c',
+      );
+      expect(recovered.displayName, 'ga***@example.com');
+      expect(recovered.weekly?.usedPercent, 40);
+      expect(result.missingAccountIds, ['slot-c']);
+      expect(result.missingAccountCount, 1);
+      expect(result.snapshot?.currentConfirmed, isFalse);
+
+      final cached = jsonDecode(await File(cachePath).readAsString()) as Map;
+      expect((cached['accounts'] as List).length, 3);
+    },
+  );
 }
