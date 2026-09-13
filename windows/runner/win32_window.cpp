@@ -122,7 +122,8 @@ Win32Window::~Win32Window() {
 
 bool Win32Window::Create(const std::wstring& title,
                          const Point& origin,
-                         const Size& size) {
+                         const Size& size,
+                         bool is_codex_panel) {
   Destroy();
 
   const wchar_t* window_class =
@@ -134,8 +135,12 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+  const DWORD window_style =
+      is_codex_panel ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+  const DWORD extended_window_style =
+      is_codex_panel ? WS_EX_TOOLWINDOW : 0;
+  HWND window = CreateWindowEx(
+      extended_window_style, window_class, title.c_str(), window_style,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
