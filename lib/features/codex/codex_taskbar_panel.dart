@@ -397,7 +397,6 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   Timer? _refreshTimer;
   late bool _expanded = widget.initialExpanded;
   bool _loading = false;
-  bool _dragging = false;
 
   @override
   void initState() {
@@ -450,15 +449,9 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   }
 
   Future<void> _startDragging() async {
-    if (mounted) {
-      setState(() => _dragging = true);
-    }
     try {
       await windowManager.startDragging();
     } finally {
-      if (mounted) {
-        setState(() => _dragging = false);
-      }
       await CodexTaskbarPanelRuntime.rememberCurrentPosition();
     }
   }
