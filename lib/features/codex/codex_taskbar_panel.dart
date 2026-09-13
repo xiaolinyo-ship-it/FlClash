@@ -43,20 +43,19 @@ abstract final class CodexTaskbarPanelRuntime {
       skipTaskbar: true,
       titleBarStyle: TitleBarStyle.hidden,
     );
+    await windowManager.waitUntilReadyToShow(options);
     await windowManager.setPreventClose(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
     await windowManager.setMovable(true);
     await windowManager.setResizable(false);
-    unawaited(
-      windowManager.waitUntilReadyToShow(options, () async {
-        await _placeInitialWindow(_collapsedHeight);
-        await windowManager.show();
-        await windowManager.focus();
-        await windowManager.setAlwaysOnTop(true);
-      }),
-    );
+    await _placeInitialWindow(_collapsedHeight);
     runApp(const CodexTaskbarPanelApp());
+    await WidgetsBinding.instance.endOfFrame;
+    await windowManager.setSize(Size(_panelWidth, _collapsedHeight));
+    await windowManager.show();
+    await windowManager.focus();
+    await windowManager.setAlwaysOnTop(true);
   }
 
   static Future<bool> ensureStarted() async {
