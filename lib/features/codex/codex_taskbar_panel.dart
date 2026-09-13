@@ -50,9 +50,11 @@ abstract final class CodexTaskbarPanelRuntime {
     await windowManager.setMovable(true);
     await windowManager.setResizable(false);
     await _placeInitialWindow(_collapsedHeight);
-    await windowManager.show();
-    await windowManager.setAlwaysOnTop(true);
     runApp(const CodexTaskbarPanelApp());
+    await WidgetsBinding.instance.endOfFrame;
+    await windowManager.show();
+    await windowManager.focus();
+    await windowManager.setAlwaysOnTop(true);
   }
 
   static Future<bool> ensureStarted() async {
