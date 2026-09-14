@@ -6,6 +6,7 @@ import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 
 import 'model.dart';
+import 'process_probe.dart';
 
 typedef CoreProcessStarter =
     Future<Process> Function(String executable, List<String> arguments);
@@ -24,10 +25,12 @@ abstract interface class DesktopCoreLauncherResolver {
 final class DirectCoreLauncher implements CoreProcessLauncher {
   final CoreProcessStarter _startProcess;
   final String corePath;
+  final bool _detached;
 
   DirectCoreLauncher({CoreProcessStarter? startProcess, String? corePath})
-    : _startProcess = startProcess ?? Process.start,
-      corePath = corePath ?? appPath.corePath;
+    : _startProcess = startProcess ?? _startDetachedCore,
+      corePath = corePath ?? appPath.corePath,
+      _detached = startProcess == null;
 
   @override
   Future<CoreProcessLease> start({
@@ -42,8 +45,28 @@ final class DirectCoreLauncher implements CoreProcessLauncher {
         commonPrint.log(error, logLevel: LogLevel.warning);
       }
     });
-    return DirectCoreLease(sessionId: sessionId, process: process);
+    return DirectCoreLease(
+      sessionId: sessionId,
+      process: process,
+      detached: _detached,
+    );
   }
+}
+
+Future<Process> _startDetachedCore(
+  String executable,
+  List<String> arguments,
+) {
+  // FlClashCore.exe is a Windows CUI binary. Detaching it prevents Windows
+  // from creating a console window whose close event would terminate the
+  // core and, in turn, make the main FlClash window lose its proxy session.
+  // Stdio remains connected so the existing diagnostic listeners continue to
+  // work.
+  return Process.start(
+    executable,
+    arguments,
+    mode: ProcessStartMode.detachedWithStdio,
+  );
 }
 
 final class DirectCoreLease implements CoreProcessLease {
@@ -51,10 +74,15 @@ final class DirectCoreLease implements CoreProcessLease {
   final String sessionId;
 
   final Process _process;
+  final bool _detached;
   Future<CoreProcessStopResult>? _stopOperation;
 
-  DirectCoreLease({required this.sessionId, required Process process})
-    : _process = process;
+  DirectCoreLease({
+    required this.sessionId,
+    required Process process,
+    bool detached = false,
+  }) : _process = process,
+       _detached = detached;
 
   @override
   CoreProcessOwner get owner => CoreProcessOwner.direct;
@@ -80,6 +108,19 @@ final class DirectCoreLease implements CoreProcessLease {
 
   Future<CoreProcessStopResult> _stop(Duration timeout) async {
     final stopped = _process.kill();
+    if (_detached) {
+      final deadline = DateTime.now().add(timeout);
+      do {
+        if (!await isProcessAlive(_process.pid)) {
+          return CoreProcessStopResult(stopped: stopped, exitConfirmed: true);
+        }
+        if (DateTime.now().isAfter(deadline)) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      } while (true);
+      return CoreProcessStopResult(stopped: stopped, exitConfirmed: false);
+    }
     try {
       await _process.exitCode.timeout(timeout);
       return CoreProcessStopResult(stopped: stopped, exitConfirmed: true);
