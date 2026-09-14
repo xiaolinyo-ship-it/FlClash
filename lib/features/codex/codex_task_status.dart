@@ -44,7 +44,7 @@ class CodexTaskStatusReader {
           continue;
         }
         final modified = (await entity.stat()).modified;
-        if (latestActivity == null || modified.isAfter(latestActivity!)) {
+        if (latestActivity == null || modified.isAfter(latestActivity)) {
           latestActivity = modified;
         }
       }
@@ -55,7 +55,7 @@ class CodexTaskStatusReader {
     if (latestActivity == null) {
       return CodexTaskStatus.unavailable;
     }
-    final age = clock().difference(latestActivity!);
+    final age = clock().difference(latestActivity);
     if (age <= activeWindow) {
       return CodexTaskStatus.thinking;
     }
