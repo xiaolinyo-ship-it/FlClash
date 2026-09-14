@@ -489,11 +489,15 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
     }
     return RepaintBoundary(
       key: widget.captureKey,
-      child: Material(
-        color: Colors.transparent,
-        child: _expanded
-            ? _buildExpanded(context, snapshot)
-            : _buildCollapsed(context, current),
+      child: MouseRegion(
+        onEnter: (_) => unawaited(_setExpanded(true)),
+        onExit: (_) => unawaited(_setExpanded(false)),
+        child: Material(
+          color: Colors.transparent,
+          child: _expanded
+              ? _buildExpanded(context, snapshot)
+              : _buildCollapsed(context, current),
+        ),
       ),
     );
   }
@@ -517,7 +521,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
           const SizedBox(width: 4),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => unawaited(_setExpanded(!_expanded)),
+            onTap: () => unawaited(_setExpanded(true)),
             child: SizedBox(
               width: _pillWidth,
               height: _pillHeight,
