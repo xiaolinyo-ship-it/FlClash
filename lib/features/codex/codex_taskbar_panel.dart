@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 
 import 'package:fl_clash/core/desktop/taskbar_window_guard.dart';
 import 'package:fl_clash/features/codex/codex_account_snapshot.dart';
+import 'package:fl_clash/features/codex/codex_task_status.dart';
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as path;
@@ -391,27 +392,46 @@ class CodexTaskbarPanel extends StatefulWidget {
 
 class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   static const _refreshInterval = Duration(minutes: 2);
+  static const _taskStatusRefreshInterval = Duration(seconds: 2);
 
   late final CodexAccountSnapshotReader _reader;
+  late final CodexTaskStatusReader _taskStatusReader;
   CodexAccountSnapshot? _snapshot;
   Set<String> _missingAccountIds = {};
   CodexSnapshotReadFailure? _failure;
   Timer? _refreshTimer;
+  Timer? _taskStatusRefreshTimer;
   late bool _expanded = widget.initialExpanded;
   bool _loading = false;
+  CodexTaskStatus _taskStatus = CodexTaskStatus.unavailable;
 
   @override
   void initState() {
     super.initState();
     _reader = widget.reader ?? CodexAccountSnapshotReader(clock: widget.clock);
+    _taskStatusReader = CodexTaskStatusReader(clock: widget.clock);
     _load();
+    _loadTaskStatus();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _load());
+    _taskStatusRefreshTimer = Timer.periodic(
+      _taskStatusRefreshInterval,
+      (_) => _loadTaskStatus(),
+    );
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _taskStatusRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadTaskStatus() async {
+    final status = await _taskStatusReader.read();
+    if (!mounted || status == _taskStatus) {
+      return;
+    }
+    setState(() => _taskStatus = status);
   }
 
   Future<void> _load() async {
@@ -490,25 +510,34 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
         : _shortDate(current?.weekly?.resetAt ?? current?.fiveHour?.resetAt);
     return Align(
       alignment: Alignment.center,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => unawaited(_setExpanded(!_expanded)),
-        child: SizedBox(
-          width: _pillWidth,
-          height: _pillHeight,
-          child: _PanelSurface(
-            popup: false,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            onDrag: _startDragging,
-            child: _SummaryLine(
-              account: current,
-              fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
-              weekly: current?.hasDataAnomaly == true ? null : weekly,
-              reset: reset,
-              loading: _loading,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _StatusDot(
+            current: false,
+            color: Color(0xadffffff),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => unawaited(_setExpanded(!_expanded)),
+            child: SizedBox(
+              width: _pillWidth,
+              height: _pillHeight,
+              child: _PanelSurface(
+                popup: false,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onDrag: _startDragging,
+                child: _SummaryLine(
+                  fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
+                  weekly: current?.hasDataAnomaly == true ? null : weekly,
+                  reset: reset,
+                  taskStatus: _taskStatus,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -597,11 +626,12 @@ class _PanelSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = popup ? 12.0 : 999.0;
     final surface = Container(
       width: double.infinity,
       height: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.all(Radius.circular(popup ? 12 : 7)),
+        borderRadius: BorderRadius.all(Radius.circular(radius)),
         boxShadow: popup
             ? const [
                 BoxShadow(
@@ -629,9 +659,12 @@ class _PanelSurface extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onPanStart: onDrag == null ? null : (_) => unawaited(onDrag!()),
           child: ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(popup ? 12 : 7)),
+            borderRadius: BorderRadius.all(Radius.circular(radius)),
             child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              filter: ui.ImageFilter.blur(
+                sigmaX: popup ? 16 : 14,
+                sigmaY: popup ? 16 : 14,
+              ),
               child: Container(
                 padding: padding,
                 decoration: BoxDecoration(
@@ -639,7 +672,7 @@ class _PanelSurface extends StatelessWidget {
                       ? const Color(0xF5171F2B)
                       : const Color(0x14FFFFFF),
                   borderRadius: BorderRadius.all(
-                    Radius.circular(popup ? 12 : 7),
+                    Radius.circular(radius),
                   ),
                   border: Border.all(
                     color: popup
@@ -660,29 +693,22 @@ class _PanelSurface extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  final CodexAccountCardData? account;
   final double? fiveHour;
   final double? weekly;
   final String reset;
-  final bool loading;
+  final CodexTaskStatus taskStatus;
 
   const _SummaryLine({
-    required this.account,
     required this.fiveHour,
     required this.weekly,
     required this.reset,
-    required this.loading,
+    required this.taskStatus,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatusDot(
-          current: account != null && account!.isCurrent,
-          color: const Color(0xadffffff),
-        ),
-        const SizedBox(width: 2),
         Expanded(
           child: Text.rich(
             TextSpan(
@@ -704,7 +730,27 @@ class _SummaryLine extends StatelessWidget {
                 ),
                 TextSpan(
                   text: ' | $reset',
-                  style: const TextStyle(color: Color(0xb8ffffff)),
+                  style: const TextStyle(
+                    color: Color(0xb8ffffff),
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' | ',
+                  style: TextStyle(
+                    color: Color(0x85ffffff),
+                    fontSize: 7.8,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextSpan(
+                  text: codexTaskStatusLabel(taskStatus),
+                  style: const TextStyle(
+                    color: Color(0xc7ffffff),
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -712,18 +758,6 @@ class _SummaryLine extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (loading)
-          const Padding(
-            padding: EdgeInsets.only(left: 5),
-            child: SizedBox(
-              width: 10,
-              height: 10,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.7,
-                color: Color(0xffd9dde2),
-              ),
-            ),
-          ),
       ],
     );
   }
