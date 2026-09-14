@@ -32,8 +32,7 @@ abstract final class TaskbarWindowGuard {
         return;
       }
       final panelRect = api.windowRect(panel);
-      if (panelRect == null ||
-          !api.taskbarRects().any(panelRect.overlaps)) {
+      if (panelRect == null || !api.taskbarRects().any(panelRect.overlaps)) {
         return;
       }
       api.setTopmost(panel);
@@ -75,32 +74,36 @@ final class _RectSnapshot {
 
 final class _WindowsTaskbarApi {
   _WindowsTaskbarApi() : _user32 = DynamicLibrary.open('user32.dll') {
-    _findWindow = _user32.lookupFunction<
-        IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
-        int Function(Pointer<Utf16>, Pointer<Utf16>)
-      >('FindWindowW');
-    _findWindowEx = _user32.lookupFunction<
-        IntPtr Function(IntPtr, IntPtr, Pointer<Utf16>, Pointer<Utf16>),
-        int Function(int, int, Pointer<Utf16>, Pointer<Utf16>)
-      >('FindWindowExW');
-    _getWindowRect = _user32.lookupFunction<
-        Int32 Function(IntPtr, Pointer<_NativeRect>),
-        int Function(int, Pointer<_NativeRect>)
-      >('GetWindowRect');
-    _isWindowVisible = _user32.lookupFunction<
-        Int32 Function(IntPtr),
-        int Function(int)
-      >('IsWindowVisible');
-    _setWindowPos = _user32.lookupFunction<
-        Int32 Function(IntPtr, IntPtr, Int32, Int32, Int32, Int32, Uint32),
-        int Function(int, int, int, int, int, int, int)
-      >('SetWindowPos');
+    _findWindow = _user32
+        .lookupFunction<
+          IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
+          int Function(Pointer<Utf16>, Pointer<Utf16>)
+        >('FindWindowW');
+    _findWindowEx = _user32
+        .lookupFunction<
+          IntPtr Function(IntPtr, IntPtr, Pointer<Utf16>, Pointer<Utf16>),
+          int Function(int, int, Pointer<Utf16>, Pointer<Utf16>)
+        >('FindWindowExW');
+    _getWindowRect = _user32
+        .lookupFunction<
+          Int32 Function(IntPtr, Pointer<_NativeRect>),
+          int Function(int, Pointer<_NativeRect>)
+        >('GetWindowRect');
+    _isWindowVisible = _user32
+        .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+          'IsWindowVisible',
+        );
+    _setWindowPos = _user32
+        .lookupFunction<
+          Int32 Function(IntPtr, IntPtr, Int32, Int32, Int32, Int32, Uint32),
+          int Function(int, int, int, int, int, int, int)
+        >('SetWindowPos');
   }
 
   final DynamicLibrary _user32;
   late final int Function(Pointer<Utf16>, Pointer<Utf16>) _findWindow;
   late final int Function(int, int, Pointer<Utf16>, Pointer<Utf16>)
-      _findWindowEx;
+  _findWindowEx;
   late final int Function(int, Pointer<_NativeRect>) _getWindowRect;
   late final int Function(int) _isWindowVisible;
   late final int Function(int, int, int, int, int, int, int) _setWindowPos;
@@ -137,12 +140,7 @@ final class _WindowsTaskbarApi {
       _addVisibleRect(_findWindow(primaryClass, _nullUtf16), rects);
       var previous = 0;
       while (true) {
-        final taskbar = _findWindowEx(
-          0,
-          previous,
-          secondaryClass,
-          _nullUtf16,
-        );
+        final taskbar = _findWindowEx(0, previous, secondaryClass, _nullUtf16);
         if (taskbar == 0) {
           break;
         }

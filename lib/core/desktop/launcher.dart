@@ -53,10 +53,7 @@ final class DirectCoreLauncher implements CoreProcessLauncher {
   }
 }
 
-Future<Process> _startDetachedCore(
-  String executable,
-  List<String> arguments,
-) {
+Future<Process> _startDetachedCore(String executable, List<String> arguments) {
   // FlClashCore.exe is a Windows CUI binary. Detaching it prevents Windows
   // from creating a console window whose close event would terminate the
   // core and, in turn, make the main FlClash window lose its proxy session.
