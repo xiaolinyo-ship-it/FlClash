@@ -315,9 +315,7 @@ class _CodexQuotaRow extends StatelessWidget {
                     )
                   : localizations.codexDataAnomaly,
               style: context.textTheme.bodySmall?.copyWith(
-                color: valid
-                    ? colorScheme.onSurfaceVariant
-                    : colorScheme.error,
+                color: valid ? colorScheme.onSurfaceVariant : colorScheme.error,
               ),
             ),
           ],
