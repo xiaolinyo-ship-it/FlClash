@@ -627,7 +627,11 @@ class _PanelSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = popup ? 12.0 : 999.0;
+    // CodexBar uses a compact 7px taskbar capsule and a separate, darker
+    // rounded popup. Keeping these surfaces distinct is important: the
+    // taskbar pill should read as a native taskbar widget, not as a second
+    // dark floating window.
+    final radius = popup ? 12.0 : 7.0;
     final surface = Container(
       width: double.infinity,
       height: double.infinity,
@@ -673,16 +677,30 @@ class _PanelSurface extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: popup
                       ? const Color(0xF5171F2B)
-                      : const Color(0x14FFFFFF),
+                      : const Color(0xBDD5E7F2),
                   borderRadius: BorderRadius.all(Radius.circular(radius)),
                   border: Border.all(
                     color: popup
                         ? const Color(0xADFFFFFF)
-                        : const Color(0x38FFFFFF),
+                        : const Color(0x7AFFFFFF),
                     width: 1.0,
                   ),
                 ),
-                child: child,
+                child: Stack(
+                  children: [
+                    child,
+                    if (!popup)
+                      const Positioned(
+                        top: 0,
+                        left: 1,
+                        right: 1,
+                        height: 1,
+                        child: IgnorePointer(
+                          child: ColoredBox(color: Color(0x94FFFFFF)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -714,31 +732,45 @@ class _SummaryLine extends StatelessWidget {
           child: Text.rich(
             TextSpan(
               style: const TextStyle(
-                color: Color(0xf2ffffff),
+                color: Color(0xf0182a36),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
               children: [
-                const TextSpan(text: '5h '),
+                const TextSpan(
+                  text: '5h ',
+                  style: TextStyle(
+                    color: Color(0xa6182a36),
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 TextSpan(
                   text: _percent(fiveHour),
                   style: const TextStyle(
-                    color: Color(0xff9be8b5),
+                    color: Color(0xff22c55e),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const TextSpan(text: ' | W '),
+                const TextSpan(
+                  text: ' | W ',
+                  style: TextStyle(
+                    color: Color(0xa6182a36),
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 TextSpan(
                   text: _percent(weekly),
                   style: const TextStyle(
-                    color: Color(0xff9be8b5),
+                    color: Color(0xff22c55e),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 TextSpan(
                   text: ' | $reset',
                   style: const TextStyle(
-                    color: Color(0xb8ffffff),
+                    color: Color(0xb8182a36),
                     fontSize: 9.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -746,7 +778,7 @@ class _SummaryLine extends StatelessWidget {
                 const TextSpan(
                   text: ' | ',
                   style: TextStyle(
-                    color: Color(0x85ffffff),
+                    color: Color(0x85182a36),
                     fontSize: 8.6,
                     fontWeight: FontWeight.w600,
                   ),
@@ -754,7 +786,7 @@ class _SummaryLine extends StatelessWidget {
                 TextSpan(
                   text: codexTaskStatusLabel(taskStatus),
                   style: const TextStyle(
-                    color: Color(0xc7ffffff),
+                    color: Color(0xc7182a36),
                     fontSize: 9.5,
                     fontWeight: FontWeight.w500,
                   ),
