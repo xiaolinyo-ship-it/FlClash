@@ -513,10 +513,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const _StatusDot(
-            current: false,
-            color: Color(0xadffffff),
-          ),
+          const _StatusDot(current: false, color: Color(0xadffffff)),
           const SizedBox(width: 4),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -671,9 +668,7 @@ class _PanelSurface extends StatelessWidget {
                   color: popup
                       ? const Color(0xF5171F2B)
                       : const Color(0x14FFFFFF),
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(radius),
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(radius)),
                   border: Border.all(
                     color: popup
                         ? const Color(0xADFFFFFF)

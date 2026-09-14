@@ -2,11 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-enum CodexTaskStatus {
-  thinking,
-  completed,
-  unavailable,
-}
+enum CodexTaskStatus { thinking, completed, unavailable }
 
 class CodexTaskStatusReader {
   static const activeWindow = Duration(seconds: 120);
@@ -15,10 +11,8 @@ class CodexTaskStatusReader {
   final String? sessionsRoot;
   final DateTime Function() clock;
 
-  CodexTaskStatusReader({
-    this.sessionsRoot,
-    DateTime Function()? clock,
-  }) : clock = clock ?? DateTime.now;
+  CodexTaskStatusReader({this.sessionsRoot, DateTime Function()? clock})
+    : clock = clock ?? DateTime.now;
 
   Future<CodexTaskStatus> read() async {
     final root = sessionsRoot ?? _defaultSessionsRoot();
