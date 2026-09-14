@@ -76,25 +76,25 @@ final class _RectSnapshot {
 final class _WindowsTaskbarApi {
   _WindowsTaskbarApi() : _user32 = DynamicLibrary.open('user32.dll') {
     _findWindow = _user32.lookupFunction<
-      IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
-      int Function(Pointer<Utf16>, Pointer<Utf16>)
-    >('FindWindowW');
+        IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
+        int Function(Pointer<Utf16>, Pointer<Utf16>)
+      >('FindWindowW');
     _findWindowEx = _user32.lookupFunction<
-      IntPtr Function(IntPtr, IntPtr, Pointer<Utf16>, Pointer<Utf16>),
-      int Function(int, int, Pointer<Utf16>, Pointer<Utf16>)
-    >('FindWindowExW');
+        IntPtr Function(IntPtr, IntPtr, Pointer<Utf16>, Pointer<Utf16>),
+        int Function(int, int, Pointer<Utf16>, Pointer<Utf16>)
+      >('FindWindowExW');
     _getWindowRect = _user32.lookupFunction<
-      Int32 Function(IntPtr, Pointer<_NativeRect>),
-      int Function(int, Pointer<_NativeRect>)
-    >('GetWindowRect');
+        Int32 Function(IntPtr, Pointer<_NativeRect>),
+        int Function(int, Pointer<_NativeRect>)
+      >('GetWindowRect');
     _isWindowVisible = _user32.lookupFunction<
-      Int32 Function(IntPtr),
-      int Function(int)
-    >('IsWindowVisible');
+        Int32 Function(IntPtr),
+        int Function(int)
+      >('IsWindowVisible');
     _setWindowPos = _user32.lookupFunction<
-      Int32 Function(IntPtr, IntPtr, Int32, Int32, Int32, Int32, Uint32),
-      int Function(int, int, int, int, int, int, int)
-    >('SetWindowPos');
+        Int32 Function(IntPtr, IntPtr, Int32, Int32, Int32, Int32, Uint32),
+        int Function(int, int, int, int, int, int, int)
+      >('SetWindowPos');
   }
 
   final DynamicLibrary _user32;
