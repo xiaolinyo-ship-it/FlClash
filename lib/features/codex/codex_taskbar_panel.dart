@@ -471,11 +471,11 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
   }
 
   Future<void> _startDragging() async {
-    try {
-      await windowManager.startDragging();
-    } finally {
-      await CodexTaskbarPanelRuntime.rememberCurrentPosition();
-    }
+    await windowManager.startDragging();
+  }
+
+  Future<void> _finishDragging() {
+    return CodexTaskbarPanelRuntime.rememberCurrentPosition();
   }
 
   @override
@@ -525,6 +525,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
                 popup: false,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onDrag: _startDragging,
+                onDragEnd: _finishDragging,
                 child: _SummaryLine(
                   fiveHour: current?.hasDataAnomaly == true ? null : fiveHour,
                   weekly: current?.hasDataAnomaly == true ? null : weekly,
@@ -559,6 +560,7 @@ class _CodexTaskbarPanelState extends State<CodexTaskbarPanel> {
             popup: true,
             padding: const EdgeInsets.fromLTRB(3, 4, 3, 4),
             onDrag: _startDragging,
+            onDragEnd: _finishDragging,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -612,6 +614,7 @@ class _PanelSurface extends StatelessWidget {
   final EdgeInsets padding;
   final Widget child;
   final Future<void> Function()? onDrag;
+  final Future<void> Function()? onDragEnd;
   final bool popup;
 
   const _PanelSurface({
@@ -619,6 +622,7 @@ class _PanelSurface extends StatelessWidget {
     required this.child,
     required this.popup,
     this.onDrag,
+    this.onDragEnd,
   });
 
   @override
@@ -655,6 +659,8 @@ class _PanelSurface extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onPanStart: onDrag == null ? null : (_) => unawaited(onDrag!()),
+          onPanEnd: onDragEnd == null ? null : (_) => unawaited(onDragEnd!()),
+          onPanCancel: onDragEnd == null ? null : () => unawaited(onDragEnd!()),
           child: ClipRRect(
             borderRadius: BorderRadius.all(Radius.circular(radius)),
             child: BackdropFilter(
