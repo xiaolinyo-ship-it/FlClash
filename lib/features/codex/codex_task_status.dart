@@ -68,7 +68,11 @@ class CodexTaskStatusReader {
   static String? _defaultSessionsRoot() {
     final codexHome = Platform.environment['CODEX_HOME'];
     if (codexHome != null && codexHome.isNotEmpty) {
-      return path.join(codexHome, 'sessions');
+      final normalized = codexHome.trim();
+      if (path.basename(normalized).toLowerCase() == 'sessions') {
+        return normalized;
+      }
+      return path.join(normalized, 'sessions');
     }
     final userProfile = Platform.environment['USERPROFILE'];
     if (userProfile == null || userProfile.isEmpty) {
