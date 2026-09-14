@@ -38,6 +38,8 @@ jobs:
       - name: Format changed Dart sources
         run: >-
           dart format lib/features/codex
+          lib/core/desktop/launcher.dart
+          lib/core/desktop/taskbar_window_guard.dart
           lib/common/path.dart
           lib/common/tray.dart
           lib/l10n/intl/messages_en.dart
@@ -56,6 +58,8 @@ jobs:
             lib/common/path.dart
             lib/common/tray.dart
             lib/features/codex
+            lib/core/desktop/launcher.dart
+            lib/core/desktop/taskbar_window_guard.dart
             lib/views/dashboard/dashboard.dart
             lib/views/dashboard/widgets/codex_accounts.dart
             lib/views/dashboard/widgets/widgets.dart
