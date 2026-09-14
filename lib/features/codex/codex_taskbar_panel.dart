@@ -24,7 +24,7 @@ const _panelWidth = 360.0;
 const _popupWidth = 324.0;
 const _pillWidth = 196.0;
 const _collapsedHeight = 36.0;
-const _pillHeight = 20.0;
+const _pillHeight = 22.0;
 const _popupHeight = 120.0;
 const _panelGap = 4.0;
 const _expandedHeight = _popupHeight + _panelGap + _collapsedHeight;
@@ -715,25 +715,31 @@ class _SummaryLine extends StatelessWidget {
             TextSpan(
               style: const TextStyle(
                 color: Color(0xf2ffffff),
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
               children: [
                 const TextSpan(text: '5h '),
                 TextSpan(
                   text: _percent(fiveHour),
-                  style: const TextStyle(color: Color(0xff9be8b5)),
+                  style: const TextStyle(
+                    color: Color(0xff9be8b5),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const TextSpan(text: ' | W '),
                 TextSpan(
                   text: _percent(weekly),
-                  style: const TextStyle(color: Color(0xff9be8b5)),
+                  style: const TextStyle(
+                    color: Color(0xff9be8b5),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 TextSpan(
                   text: ' | $reset',
                   style: const TextStyle(
                     color: Color(0xb8ffffff),
-                    fontSize: 8.6,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -741,7 +747,7 @@ class _SummaryLine extends StatelessWidget {
                   text: ' | ',
                   style: TextStyle(
                     color: Color(0x85ffffff),
-                    fontSize: 7.8,
+                    fontSize: 8.6,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -749,7 +755,7 @@ class _SummaryLine extends StatelessWidget {
                   text: codexTaskStatusLabel(taskStatus),
                   style: const TextStyle(
                     color: Color(0xc7ffffff),
-                    fontSize: 8.6,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
